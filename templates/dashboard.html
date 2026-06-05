@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Dashboard</h2>
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Total Members</h5>
+                <p class="card-text display-6">{{ total_members }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Active Loans</h5>
+                <p class="card-text display-6">{{ active_loans }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Savings Balance</h5>
+                <p class="card-text display-6">{{ savings_balance|floatformat:2 }} TK</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Today's Collection</h5>
+                <p class="card-text display-6">{{ daily_collection|floatformat:2 }} TK</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Cash Position</div>
+            <div class="card-body">
+                <h3>{{ cash_position|floatformat:2 }} TK</h3>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

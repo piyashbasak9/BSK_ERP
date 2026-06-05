@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Member Management</h2>
+<button class="btn btn-primary mb-3" onclick="window.location.href='/members/add/'">Add Member</button>
+<div id="member-grid"></div>
+<script>
+    var grid = new Tabulator("#member-grid", {
+        ajaxURL: "/members/data/",
+        layout: "fitColumns",
+        pagination: "remote",
+        paginationSize: 20,
+        columns: {{ columns|safe }},
+        downloadDataFormatter: function(data) { return data; },
+        downloadReady: function(data, blob) { return blob; }
+    });
+</script>
+{% endblock %}
