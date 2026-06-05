@@ -1,72 +1,263 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Member Management</h2>
-<button class="btn btn-primary mb-3" onclick="window.location.href='/members/add/'">Add Member</button>
-<div id="member-grid" class="mb-4"></div>
+
 {% if branch_missing %}
 <div class="alert alert-warning">Your account does not have a branch assigned. Assign a branch to see branch-specific member records.</div>
 {% endif %}
-{% if members %}
-<h3 class="mt-4">Member List</h3>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Phone</th>
-            <th>Registration Date</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for member in members %}
-            <tr>
-                <td>{{ member.member_id }}</td>
-                <td>{{ member.name }}</td>
-                <td>{{ member.phone }}</td>
-                <td>{{ member.registration_date }}</td>
-                <td>{{ member.is_active|yesno:'Active,Inactive' }}</td>
-                <td>
-                    <a class="btn btn-sm btn-primary me-1" href="{% url 'member_detail' member.id %}">View</a>
-                    {% if perms.members.change_member %}
-                        <a class="btn btn-sm btn-warning me-1" href="{% url 'member_edit' member.id %}">Edit</a>
-                    {% endif %}
-                    {% if perms.members.delete_member %}
-                        <a class="btn btn-sm btn-danger" href="{% url 'member_delete' member.id %}">Delete</a>
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<p>No members available.</p>
-{% endif %}
-<script type="application/json" id="member-columns-json">{{ columns_json|safe }}</script>
-<script>
-    const memberColumns = JSON.parse(document.getElementById('member-columns-json').textContent || '[]');
-    memberColumns.push({
-        title: "Actions",
-        hozAlign: "center",
-        formatter: function(cell) {
-            const row = cell.getRow().getData();
-            return `
-                <a class="btn btn-sm btn-primary me-1" href="/members/${row.id}/">View</a>
-                <a class="btn btn-sm btn-warning me-1" href="/members/${row.id}/edit/">Edit</a>
-                <a class="btn btn-sm btn-danger" href="/members/${row.id}/delete/">Delete</a>
-            `;
-        }
-    });
 
-    var grid = new Tabulator("#member-grid", {
-        ajaxURL: "/members/data/",
-        layout: "fitColumns",
-        pagination: "remote",
-        paginationSize: 20,
-        columns: memberColumns,
-        downloadDataFormatter: function(data) { return data; },
-        downloadReady: function(data, blob) { return blob; }
-    });
+<div class="master-detail-container">
+    <!-- Left Column: Member List -->
+    <div class="master-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Member List</h5>
+                <a class="btn btn-success btn-sm" href="{% url 'member_add' %}">+ Add New Member</a>
+            </div>
+            <div class="search-controls">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By ID</span>
+                    <input id="member-search-id" type="search" class="form-control" placeholder="Member ID">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Name</span>
+                    <input id="member-search-name" type="search" class="form-control" placeholder="Member Name">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Phone</span>
+                    <input id="member-search-phone" type="search" class="form-control" placeholder="Phone Number">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="grid-container" id="member-grid">
+                    {% if initial_members %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in initial_members %}
+                                <tr style="cursor: pointer;">
+                                    <td>{{ m.member_id }}</td>
+                                    <td>{{ m.name }}</td>
+                                    <td>{{ m.phone }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Member Detail -->
+    <div class="detail-column">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Member Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="detail-container" id="member-detail-panel">
+                    <p class="text-muted text-center" style="padding: 40px 20px;">Select a member from the list to view details.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="member-columns-json">{{ columns_json|safe }}</script>
+<script type="application/json" id="member-initial-json">{{ initial_data_json|safe }}</script>
+<script>
+    const columns = JSON.parse(document.getElementById('member-columns-json').textContent || '[]');
+    const searchId = document.getElementById('member-search-id');
+    const searchName = document.getElementById('member-search-name');
+    const searchPhone = document.getElementById('member-search-phone');
+    const detailPanel = document.getElementById('member-detail-panel');
+    let searchTimer;
+
+    // Load and display member detail in right panel
+    function loadMemberDetail(memberId) {
+        fetch(`/members/${memberId}/json/`, {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => {
+                let html = `
+                    <div class="member-detail">
+                        <div class="member-detail-field"><strong>Member ID:</strong> <span class="member-detail-field-value">${data.member_id || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Name:</strong> <span class="member-detail-field-value">${data.name || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Father Name:</strong> <span class="member-detail-field-value">${data.father_name || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Mother Name:</strong> <span class="member-detail-field-value">${data.mother_name || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Spouse Name:</strong> <span class="member-detail-field-value">${data.spouse_name || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Gender:</strong> <span class="member-detail-field-value">${data.gender || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Marital Status:</strong> <span class="member-detail-field-value">${data.marital_status || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Date of Birth:</strong> <span class="member-detail-field-value">${data.date_of_birth || '—'}</span></div>
+                        <div class="member-detail-field"><strong>NID:</strong> <span class="member-detail-field-value">${data.nid || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Phone:</strong> <span class="member-detail-field-value">${data.phone || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Email:</strong> <span class="member-detail-field-value">${data.email || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Present Address:</strong> <span class="member-detail-field-value">${data.present_address || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Permanent Address:</strong> <span class="member-detail-field-value">${data.permanent_address || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Branch:</strong> <span class="member-detail-field-value">${data.branch || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Registration Date:</strong> <span class="member-detail-field-value">${data.registration_date || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Is Active:</strong> <span class="member-detail-field-value">${data.is_active ? 'Yes' : 'No'}</span></div>
+                        <div class="member-detail-field"><strong>Created By:</strong> <span class="member-detail-field-value">${data.created_by || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Created At:</strong> <span class="member-detail-field-value">${data.created_at || '—'}</span></div>
+                        <div class="member-detail-field"><strong>Updated At:</strong> <span class="member-detail-field-value">${data.updated_at || '—'}</span></div>
+                        <div class="member-detail-actions">
+                            <a class="btn btn-warning btn-sm" href="/members/${data.id}/edit/">Edit</a>
+                            <a class="btn btn-danger btn-sm" href="/members/${data.id}/delete/">Delete</a>
+                        </div>
+                    </div>
+                `;
+                detailPanel.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Detail fetch error', err);
+                detailPanel.innerHTML = '<p class="text-danger">Error loading member details.</p>';
+            });
+    }
+
+    let memberGrid = null;
+    if (typeof Tabulator === 'undefined') {
+        console.warn('Tabulator not loaded; using simple client-side fallback grid.');
+
+        // Minimal fallback grid that supports setData(url, params) and rowClick navigation
+        function MiniGrid(selector, options) {
+            this.container = document.querySelector(selector);
+            this.columns = options.columns || [];
+            this.rowClick = options.rowClick;
+            this.ajaxURL = options.ajaxURL || '/members/data/';
+        }
+
+        MiniGrid.prototype.render = function(rows) {
+            if (!this.container) return;
+            let html = '<table class="table table-sm mb-0"><thead><tr>';
+            const cols = (this.columns && this.columns.length) ? this.columns : (rows[0] ? Object.keys(rows[0]).map(k=>({field:k,title:k})) : []);
+            cols.forEach(c => { html += `<th>${c.title || c.field}</th>`; });
+            html += '</tr></thead><tbody>';
+            rows.forEach(r => {
+                html += '<tr data-id="' + (r.id || r.member_id || '') + '" style="cursor: pointer;">';
+                cols.forEach(c => {
+                    const v = r[c.field] !== undefined ? r[c.field] : '';
+                    html += '<td>' + (v === null ? '' : String(v)) + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            this.container.innerHTML = html;
+            const self = this;
+            Array.from(this.container.querySelectorAll('tbody tr')).forEach(function(tr) {
+                tr.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    if (self.rowClick && id) {
+                        self.rowClick(null, {getData: ()=>({id: id})});
+                    }
+                });
+            });
+        };
+
+        MiniGrid.prototype.setData = function(url, params) {
+            const q = new URLSearchParams(params || {}).toString();
+            const fetchUrl = url ? (url + (q ? ('?' + q) : '')) : this.ajaxURL + (q ? ('?' + q) : '');
+            fetch(fetchUrl, {credentials: 'same-origin'})
+                .then(function(r){ return r.json(); })
+                .then(function(json){
+                    const rows = json && json.data ? json.data : json;
+                    this.render(rows || []);
+                }.bind(this))
+                .catch(function(err){
+                    console.error('MiniGrid fetch error', err);
+                });
+        };
+
+        memberGrid = new MiniGrid('#member-grid', {
+            columns: columns,
+            ajaxURL: '/members/data/',
+            rowClick: function(e, row) {
+                const id = row.getData().id;
+                loadMemberDetail(id);
+            }
+        });
+        try {
+            const initial = JSON.parse(document.getElementById('member-initial-json')?.textContent || 'null');
+            if (initial && initial.data) {
+                memberGrid.render(initial.data);
+                // Auto-load first member's detail
+                if (initial.data.length > 0) {
+                    loadMemberDetail(initial.data[0].id);
+                }
+            } else {
+                memberGrid.setData('/members/data/', {page:1, size:20});
+            }
+        } catch (e) {
+            memberGrid.setData('/members/data/', {page:1, size:20});
+        }
+
+        function miniTriggerSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                const idVal = (searchId && searchId.value) ? searchId.value.trim() : '';
+                const nameVal = (searchName && searchName.value) ? searchName.value.trim() : '';
+                const phoneVal = (searchPhone && searchPhone.value) ? searchPhone.value.trim() : '';
+                memberGrid.setData('/members/data/', { member_id: idVal, name: nameVal, phone: phoneVal });
+            }, 300);
+        }
+
+        [searchId, searchName, searchPhone].forEach(function(el) {
+            if (el) el.addEventListener('keyup', miniTriggerSearch);
+        });
+    } else {
+        const memberGrid = new Tabulator("#member-grid", {
+            ajaxURL: "/members/data/",
+            ajaxParams: { member_id: '', name: '', phone: '' },
+            ajaxConfig: "GET",
+            layout: "fitColumns",
+            pagination: "remote",
+            paginationSize: 20,
+            paginationSizeSelector: [10, 20, 50, 100],
+            columns: columns,
+            rowClick: function(e, row) {
+                const id = row.getData().id;
+                loadMemberDetail(id);
+            },
+            paginationDataReceived: {
+                last_page: "last_page",
+                data: "data",
+                current_page: "current_page",
+            },
+            ajaxResponse: function(url, params, response) {
+                try {
+                    console.debug('Tabulator ajaxResponse:', {url, params, response});
+                } catch (e) {}
+                return response.data;
+            },
+            ajaxError: function(xhr, textStatus, errorThrown) {
+                console.error('Tabulator AJAX error', textStatus, errorThrown, xhr.responseText);
+            }
+        });
+
+        function triggerSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                const idVal = (searchId && searchId.value) ? searchId.value.trim() : '';
+                const nameVal = (searchName && searchName.value) ? searchName.value.trim() : '';
+                const phoneVal = (searchPhone && searchPhone.value) ? searchPhone.value.trim() : '';
+                memberGrid.setData('/members/data/', { member_id: idVal, name: nameVal, phone: phoneVal });
+            }, 300);
+        }
+
+        [searchId, searchName, searchPhone].forEach(function(el) {
+            if (el) el.addEventListener('keyup', triggerSearch);
+        });
+
+        // Auto-load first member
+        setTimeout(function() {
+            const rows = memberGrid.getData();
+            if (rows && rows.length > 0) {
+                loadMemberDetail(rows[0].id);
+            }
+        }, 500);
+    }
 </script>
 {% endblock %}
