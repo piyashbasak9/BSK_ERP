@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<h2>{% if object %}Edit Member{% else %}Add Member{% endif %}</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Save</button>
+        <a href="{% url 'member_list' %}" class="btn btn-secondary">Back</a>
+    </div>
+</form>
+{% endblock %}
