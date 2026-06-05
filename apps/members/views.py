@@ -1,3 +1,5 @@
+import json
+
 from django.views.generic import TemplateView, CreateView, UpdateView, DetailView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.http import JsonResponse, HttpResponseRedirect
@@ -19,11 +21,27 @@ class MemberListView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             {"title": "Registration Date", "field": "registration_date", "sorter": "date"},
             {"title": "Status", "field": "is_active", "formatter": "tickCross"},
         ]
+        context['columns_json'] = json.dumps(context['columns'])
+        members = Member.objects.filter(is_deleted=False).select_related('branch').order_by('member_id')
+        if not self.request.user.is_superuser:
+            if self.request.user.branch:
+                members = members.filter(branch=self.request.user.branch)
+            else:
+                members = members.none()
+                context['branch_missing'] = True
+        context['members'] = members
         return context
 
-class MemberGridDataView(LoginRequiredMixin, View):
+class MemberGridDataView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'members.view_member'
+
     def get(self, request):
-        queryset = Member.objects.filter(branch=request.user.branch, is_deleted=False)
+        queryset = Member.objects.filter(is_deleted=False)
+        if not request.user.is_superuser:
+            if request.user.branch:
+                queryset = queryset.filter(branch=request.user.branch)
+            else:
+                queryset = queryset.none()
         grid = TabulatorGrid(request.GET, queryset, search_fields=['member_id', 'name', 'phone'])
         return JsonResponse(grid.get_response())
 

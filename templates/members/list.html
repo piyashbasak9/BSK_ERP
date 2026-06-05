@@ -2,14 +2,69 @@
 {% block content %}
 <h2>Member Management</h2>
 <button class="btn btn-primary mb-3" onclick="window.location.href='/members/add/'">Add Member</button>
-<div id="member-grid"></div>
+<div id="member-grid" class="mb-4"></div>
+{% if branch_missing %}
+<div class="alert alert-warning">Your account does not have a branch assigned. Assign a branch to see branch-specific member records.</div>
+{% endif %}
+{% if members %}
+<h3 class="mt-4">Member List</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Registration Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for member in members %}
+            <tr>
+                <td>{{ member.member_id }}</td>
+                <td>{{ member.name }}</td>
+                <td>{{ member.phone }}</td>
+                <td>{{ member.registration_date }}</td>
+                <td>{{ member.is_active|yesno:'Active,Inactive' }}</td>
+                <td>
+                    <a class="btn btn-sm btn-primary me-1" href="{% url 'member_detail' member.id %}">View</a>
+                    {% if perms.members.change_member %}
+                        <a class="btn btn-sm btn-warning me-1" href="{% url 'member_edit' member.id %}">Edit</a>
+                    {% endif %}
+                    {% if perms.members.delete_member %}
+                        <a class="btn btn-sm btn-danger" href="{% url 'member_delete' member.id %}">Delete</a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No members available.</p>
+{% endif %}
+<script type="application/json" id="member-columns-json">{{ columns_json|safe }}</script>
 <script>
+    const memberColumns = JSON.parse(document.getElementById('member-columns-json').textContent || '[]');
+    memberColumns.push({
+        title: "Actions",
+        hozAlign: "center",
+        formatter: function(cell) {
+            const row = cell.getRow().getData();
+            return `
+                <a class="btn btn-sm btn-primary me-1" href="/members/${row.id}/">View</a>
+                <a class="btn btn-sm btn-warning me-1" href="/members/${row.id}/edit/">Edit</a>
+                <a class="btn btn-sm btn-danger" href="/members/${row.id}/delete/">Delete</a>
+            `;
+        }
+    });
+
     var grid = new Tabulator("#member-grid", {
         ajaxURL: "/members/data/",
         layout: "fitColumns",
         pagination: "remote",
         paginationSize: 20,
-        columns: {{ columns|safe }},
+        columns: memberColumns,
         downloadDataFormatter: function(data) { return data; },
         downloadReady: function(data, blob) { return blob; }
     });
