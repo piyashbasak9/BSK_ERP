@@ -26,3 +26,49 @@
     </div>
 </div>
 {% endblock %}
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.2.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<style>
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: calc(1.5em + .75rem + 2px);
+        padding: .375rem .75rem;
+        border-radius: .375rem;
+        border: 1px solid #ced4da;
+        background-color: #fff;
+    }
+    .select2-container--bootstrap-5 .select2-selection__rendered {
+        line-height: 1.5;
+        color: #212529;
+    }
+    .select2-container--bootstrap-5 .select2-selection__arrow {
+        height: calc(1.5em + .75rem + 2px);
+        right: .75rem;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var memberSelect = document.querySelector('select[name="member"]');
+        var productSelect = document.querySelector('select[name="product"]');
+
+        if (window.jQuery && window.jQuery.fn.select2) {
+            var initSelect2 = function(select, placeholder) {
+                if (!select || select.dataset.select2Initialized === 'true') return;
+                window.jQuery(select).select2({
+                    width: '100%',
+                    theme: 'bootstrap-5',
+                    placeholder: placeholder,
+                    minimumResultsForSearch: 0,
+                    dropdownAutoWidth: true,
+                    allowClear: false,
+                });
+                select.dataset.select2Initialized = 'true';
+            };
+
+            initSelect2(memberSelect, 'Select a member');
+            initSelect2(productSelect, 'Select a product');
+        }
+    });
+</script>
+{% endblock %}
