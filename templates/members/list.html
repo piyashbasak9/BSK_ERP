@@ -50,6 +50,20 @@
                     </table>
                     {% endif %}
                 </div>
+                <!-- Pagination Controls -->
+                <nav id="pagination-nav" class="mt-3" style="display: none;">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prev-page-item">
+                            <a class="page-link" href="#" id="prev-page-btn">Previous</a>
+                        </li>
+                        <li class="page-item active" id="current-page-item">
+                            <span class="page-link" id="current-page-text">Page 1</span>
+                        </li>
+                        <li class="page-item" id="next-page-item">
+                            <a class="page-link" href="#" id="next-page-btn">Next</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         </div>
     </div>
@@ -57,8 +71,12 @@
     <!-- Right Column: Member Detail -->
     <div class="detail-column">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Member Details</h5>
+                <div class="btn-group" role="group" aria-label="Member actions">
+                    <a id="member-detail-edit-btn" class="btn btn-warning btn-sm disabled" href="#" aria-disabled="true">Edit</a>
+                    <a id="member-detail-delete-btn" class="btn btn-danger btn-sm disabled" href="#" aria-disabled="true">Delete</a>
+                </div>
             </div>
             <div class="card-body">
                 <div class="detail-container" id="member-detail-panel">
@@ -68,6 +86,27 @@
         </div>
     </div>
 </div>
+<template id="member-detail-template">
+{% include 'members/member_detail.html' %}
+</template>
+
+
+<style>
+    .app-footer { display: none !important; }
+    /* Added CSS to force full height on parent containers */
+    .container-fluid.content-wrapper,
+    main,
+    .row,
+    .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+</style>
+
+
+
 <script type="application/json" id="member-columns-json">{{ columns_json|safe }}</script>
 <script type="application/json" id="member-initial-json">{{ initial_data_json|safe }}</script>
 <script>
@@ -76,45 +115,102 @@
     const searchName = document.getElementById('member-search-name');
     const searchPhone = document.getElementById('member-search-phone');
     const detailPanel = document.getElementById('member-detail-panel');
+    const editButton = document.getElementById('member-detail-edit-btn');
+    const deleteButton = document.getElementById('member-detail-delete-btn');
     let searchTimer;
+
+    const detailTemplate = document.getElementById('member-detail-template');
+
+    function setDetailButtons(memberId) {
+        if (!memberId) {
+            editButton.classList.add('disabled');
+            editButton.setAttribute('aria-disabled', 'true');
+            editButton.href = '#';
+            deleteButton.classList.add('disabled');
+            deleteButton.setAttribute('aria-disabled', 'true');
+            deleteButton.href = '#';
+            return;
+        }
+
+        editButton.classList.remove('disabled');
+        editButton.removeAttribute('aria-disabled');
+        editButton.href = `/members/${memberId}/edit/`;
+        deleteButton.classList.remove('disabled');
+        deleteButton.removeAttribute('aria-disabled');
+        deleteButton.href = `/members/${memberId}/delete/`;
+    }
+
+    function openInPopup(title, url) {
+        const modalEl = document.getElementById('genericModal');
+        if (!modalEl) {
+            window.location.href = url;
+            return;
+        }
+
+        const modalTitle = modalEl.querySelector('.modal-title');
+        const modalBody = modalEl.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(modalEl);
+
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        modal.show();
+
+        fetch(url, {credentials: 'same-origin'})
+            .then(r => r.text())
+            .then(text => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || text);
+            })
+            .catch(err => {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load popup content.</div>';
+                console.error('Popup load error', err);
+            });
+    }
+
+    window.addEventListener('load', function() {
+        editButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (editButton.classList.contains('disabled')) return;
+            openInPopup('Edit Member', editButton.href);
+        });
+
+        deleteButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (deleteButton.classList.contains('disabled')) return;
+            openInPopup('Delete Member', deleteButton.href);
+        });
+    });
+
+    function renderDetailPanel(data) {
+        const clone = detailTemplate.content.firstElementChild.cloneNode(true);
+        const fieldMap = {
+            is_active: data.is_active ? 'Yes' : 'No',
+            branch: data.branch || '—'
+        };
+
+        clone.querySelectorAll('[data-field]').forEach(el => {
+            const key = el.dataset.field;
+            el.textContent = fieldMap[key] ?? (data[key] || '—');
+        });
+
+        return clone;
+    }
 
     // Load and display member detail in right panel
     function loadMemberDetail(memberId) {
         fetch(`/members/${memberId}/json/`, {credentials: 'same-origin'})
             .then(r => r.json())
             .then(data => {
-                let html = `
-                    <div class="member-detail">
-                        <div class="member-detail-field"><strong>Member ID:</strong> <span class="member-detail-field-value">${data.member_id || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Name:</strong> <span class="member-detail-field-value">${data.name || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Father Name:</strong> <span class="member-detail-field-value">${data.father_name || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Mother Name:</strong> <span class="member-detail-field-value">${data.mother_name || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Spouse Name:</strong> <span class="member-detail-field-value">${data.spouse_name || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Gender:</strong> <span class="member-detail-field-value">${data.gender || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Marital Status:</strong> <span class="member-detail-field-value">${data.marital_status || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Date of Birth:</strong> <span class="member-detail-field-value">${data.date_of_birth || '—'}</span></div>
-                        <div class="member-detail-field"><strong>NID:</strong> <span class="member-detail-field-value">${data.nid || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Phone:</strong> <span class="member-detail-field-value">${data.phone || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Email:</strong> <span class="member-detail-field-value">${data.email || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Present Address:</strong> <span class="member-detail-field-value">${data.present_address || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Permanent Address:</strong> <span class="member-detail-field-value">${data.permanent_address || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Branch:</strong> <span class="member-detail-field-value">${data.branch || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Registration Date:</strong> <span class="member-detail-field-value">${data.registration_date || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Is Active:</strong> <span class="member-detail-field-value">${data.is_active ? 'Yes' : 'No'}</span></div>
-                        <div class="member-detail-field"><strong>Created By:</strong> <span class="member-detail-field-value">${data.created_by || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Created At:</strong> <span class="member-detail-field-value">${data.created_at || '—'}</span></div>
-                        <div class="member-detail-field"><strong>Updated At:</strong> <span class="member-detail-field-value">${data.updated_at || '—'}</span></div>
-                        <div class="member-detail-actions">
-                            <a class="btn btn-warning btn-sm" href="/members/${data.id}/edit/">Edit</a>
-                            <a class="btn btn-danger btn-sm" href="/members/${data.id}/delete/">Delete</a>
-                        </div>
-                    </div>
-                `;
-                detailPanel.innerHTML = html;
+                detailPanel.innerHTML = '';
+                detailPanel.appendChild(renderDetailPanel(data));
+                setDetailButtons(data.id);
             })
             .catch(err => {
                 console.error('Detail fetch error', err);
                 detailPanel.innerHTML = '<p class="text-danger">Error loading member details.</p>';
+                setDetailButtons(null);
             });
     }
 
@@ -122,15 +218,18 @@
     if (typeof Tabulator === 'undefined') {
         console.warn('Tabulator not loaded; using simple client-side fallback grid.');
 
-        // Minimal fallback grid that supports setData(url, params) and rowClick navigation
+        // Minimal fallback grid that supports setData(url, params) and rowClick navigation with pagination
         function MiniGrid(selector, options) {
             this.container = document.querySelector(selector);
             this.columns = options.columns || [];
             this.rowClick = options.rowClick;
             this.ajaxURL = options.ajaxURL || '/members/data/';
+            this.currentPage = 1;
+            this.lastPage = 1;
+            this.currentParams = {};
         }
 
-        MiniGrid.prototype.render = function(rows) {
+        MiniGrid.prototype.render = function(rows, paginationInfo) {
             if (!this.container) return;
             let html = '<table class="table table-sm mb-0"><thead><tr>';
             const cols = (this.columns && this.columns.length) ? this.columns : (rows[0] ? Object.keys(rows[0]).map(k=>({field:k,title:k})) : []);
@@ -146,6 +245,14 @@
             });
             html += '</tbody></table>';
             this.container.innerHTML = html;
+            
+            // Update pagination info if provided
+            if (paginationInfo) {
+                this.currentPage = paginationInfo.current_page || 1;
+                this.lastPage = paginationInfo.last_page || 1;
+                this.updatePaginationUI();
+            }
+            
             const self = this;
             Array.from(this.container.querySelectorAll('tbody tr')).forEach(function(tr) {
                 tr.addEventListener('click', function() {
@@ -157,14 +264,50 @@
             });
         };
 
+        MiniGrid.prototype.updatePaginationUI = function() {
+            const paginationNav = document.getElementById('pagination-nav');
+            const prevBtn = document.getElementById('prev-page-btn');
+            const nextBtn = document.getElementById('next-page-btn');
+            const currentPageText = document.getElementById('current-page-text');
+            const prevItem = document.getElementById('prev-page-item');
+            const nextItem = document.getElementById('next-page-item');
+            
+            if (!paginationNav) return;
+            
+            if (this.lastPage <= 1) {
+                paginationNav.style.display = 'none';
+                return;
+            }
+            
+            paginationNav.style.display = 'block';
+            currentPageText.textContent = `Page ${this.currentPage}`;
+            
+            if (this.currentPage <= 1) {
+                prevItem.classList.add('disabled');
+            } else {
+                prevItem.classList.remove('disabled');
+            }
+            
+            if (this.currentPage >= this.lastPage) {
+                nextItem.classList.add('disabled');
+            } else {
+                nextItem.classList.remove('disabled');
+            }
+        };
+
         MiniGrid.prototype.setData = function(url, params) {
+            this.currentParams = params || {};
+            this.currentPage = params.page || 1;
             const q = new URLSearchParams(params || {}).toString();
             const fetchUrl = url ? (url + (q ? ('?' + q) : '')) : this.ajaxURL + (q ? ('?' + q) : '');
             fetch(fetchUrl, {credentials: 'same-origin'})
                 .then(function(r){ return r.json(); })
                 .then(function(json){
                     const rows = json && json.data ? json.data : json;
-                    this.render(rows || []);
+                    this.render(rows || [], {
+                        current_page: json.current_page || 1,
+                        last_page: json.last_page || 1
+                    });
                 }.bind(this))
                 .catch(function(err){
                     console.error('MiniGrid fetch error', err);
@@ -179,10 +322,38 @@
                 loadMemberDetail(id);
             }
         });
+        
+        // Setup pagination button handlers
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+        
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (memberGrid.currentPage > 1) {
+                    const params = Object.assign({}, memberGrid.currentParams, {page: memberGrid.currentPage - 1});
+                    memberGrid.setData(memberGrid.ajaxURL, params);
+                }
+            });
+        }
+        
+        if (nextPageBtn) {
+            nextPageBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (memberGrid.currentPage < memberGrid.lastPage) {
+                    const params = Object.assign({}, memberGrid.currentParams, {page: memberGrid.currentPage + 1});
+                    memberGrid.setData(memberGrid.ajaxURL, params);
+                }
+            });
+        }
+        
         try {
             const initial = JSON.parse(document.getElementById('member-initial-json')?.textContent || 'null');
             if (initial && initial.data) {
-                memberGrid.render(initial.data);
+                memberGrid.render(initial.data, {
+                    current_page: initial.current_page || 1,
+                    last_page: initial.last_page || 1
+                });
                 // Auto-load first member's detail
                 if (initial.data.length > 0) {
                     loadMemberDetail(initial.data[0].id);
@@ -200,7 +371,7 @@
                 const idVal = (searchId && searchId.value) ? searchId.value.trim() : '';
                 const nameVal = (searchName && searchName.value) ? searchName.value.trim() : '';
                 const phoneVal = (searchPhone && searchPhone.value) ? searchPhone.value.trim() : '';
-                memberGrid.setData('/members/data/', { member_id: idVal, name: nameVal, phone: phoneVal });
+                memberGrid.setData('/members/data/', { member_id: idVal, name: nameVal, phone: phoneVal, page: 1 });
             }, 300);
         }
 
@@ -261,3 +432,4 @@
     }
 </script>
 {% endblock %}
+{% block footer %}{% endblock %}
