@@ -93,6 +93,7 @@ class MemberDetailJsonView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'email': member.email,
             'present_address': member.present_address,
             'permanent_address': member.permanent_address,
+            'photo': member.photo.url if member.photo else None,
             'branch': member.branch.name if member.branch else None,
             'registration_date': member.registration_date,
             'is_active': member.is_active,

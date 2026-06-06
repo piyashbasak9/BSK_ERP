@@ -336,6 +336,23 @@ main {
     padding: 0;
 }
 
+.member-detail-photo-section {
+    text-align: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+}
+
+.member-detail-photo-section img {
+    max-width: 120px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    object-fit: cover;
+    display: block;
+}
+
 .member-detail-field {
     display: grid;
     grid-template-columns: 140px 1fr;
@@ -515,20 +532,6 @@ main {
         min-width: 60px;
         font-size: 0.80rem;
     }
-}
-/* ===== Footer ===== */
-.app-footer {
-    background-color: #f8fafc;
-    height: 2rem;
-    border-top: 1px solid rgba(148, 163, 184, 0.35);
-}
-
-
-
-.app-footer .text-muted {
-    color: #64748b !important;
-    font-size: 0.78rem;
-    line-height: 1.2;
 }
 
 /* ===== Scrollbar Styling ===== */

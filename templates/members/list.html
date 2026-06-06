@@ -195,6 +195,24 @@
             el.textContent = fieldMap[key] ?? (data[key] || '—');
         });
 
+        // Handle photo display
+        const photoImg = clone.querySelector('#member-photo');
+        const photoPlaceholder = clone.querySelector('#member-photo-placeholder');
+        if (photoImg && data.photo) {
+            photoImg.src = data.photo;
+            photoImg.style.display = 'block';
+            photoImg.style.width = 'auto';
+            photoImg.style.height = 'auto';
+            photoImg.style.maxWidth = '120px';
+            photoImg.style.maxHeight = '120px';
+            if (photoPlaceholder) photoPlaceholder.style.display = 'none';
+            console.log('Photo loaded:', data.photo);
+        } else {
+            if (photoImg) photoImg.style.display = 'none';
+            if (photoPlaceholder) photoPlaceholder.style.display = 'block';
+            console.log('No photo available for member:', data.member_id);
+        }
+
         return clone;
     }
 
@@ -432,4 +450,3 @@
     }
 </script>
 {% endblock %}
-{% block footer %}{% endblock %}
