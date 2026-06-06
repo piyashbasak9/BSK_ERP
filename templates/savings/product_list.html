@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="master-detail-container">
+    <!-- Left Column: Savings Products List -->
+    <div class="master-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Savings Products</h5>
+                <a class="btn btn-success btn-sm" href="{% url 'savings_product_add' %}">+ Add Product</a>
+            </div>
+            <div class="search-controls">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Code</span>
+                    <input id="product-search-code" type="search" class="form-control" placeholder="Product Code">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Name</span>
+                    <input id="product-search-name" type="search" class="form-control" placeholder="Product Name">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="grid-container" id="product-grid">
+                    {% if initial_products %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Rate</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in initial_products %}
+                                <tr style="cursor: pointer;">
+                                    <td>{{ p.code }}</td>
+                                    <td>{{ p.name }}</td>
+                                    <td>{{ p.interest_rate }}%</td>
+                                    <td>{{ p.is_active|yesno:"Active,Inactive" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Product Details -->
+    <div class="detail-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Product Details</h5>
+                <div class="btn-group" id="detail-actions" style="display: none;">
+                    <a id="edit-btn" class="btn btn-primary btn-sm" href="#">Edit</a>
+                    <a id="delete-btn" class="btn btn-danger btn-sm" href="#">Delete</a>
+                </div>
+            </div>
+            <div class="card-body" id="detail-content">
+                <p class="text-muted">Select a product to view details</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize grid
+        const gridContainer = document.getElementById('product-grid');
+        if (gridContainer && typeof Tabulator !== 'undefined') {
+            const columns = {{ columns_json|safe }};
+            const initialData = {{ initial_data_json|safe }};
+            
+            const table = new Tabulator(gridContainer, {
+                data: initialData.data,
+                columns: columns,
+                layout: 'fitColumns',
+                pagination: 'remote',
+                paginationSize: 20,
+            });
+            
+            table.on('rowClick', function(e, row) {
+                const data = row.getData();
+                fetch(`/savings/products/${data.id}/json/`)
+                    .then(r => r.json())
+                    .then(product => {
+                        document.getElementById('detail-content').innerHTML = `
+                            <dl class="row">
+                                <dt class="col-sm-3">Code</dt>
+                                <dd class="col-sm-9">${product.code}</dd>
+                                <dt class="col-sm-3">Name</dt>
+                                <dd class="col-sm-9">${product.name}</dd>
+                                <dt class="col-sm-3">Interest Rate</dt>
+                                <dd class="col-sm-9">${product.interest_rate}%</dd>
+                                <dt class="col-sm-3">Min Balance</dt>
+                                <dd class="col-sm-9">₹${product.min_balance}</dd>
+                                <dt class="col-sm-3">Service Charge</dt>
+                                <dd class="col-sm-9">₹${product.service_charge}</dd>
+                                <dt class="col-sm-3">Status</dt>
+                                <dd class="col-sm-9">${product.is_active}</dd>
+                            </dl>
+                        `;
+                        document.getElementById('edit-btn').href = `/savings/products/${product.id}/edit/`;
+                        document.getElementById('delete-btn').href = `/savings/products/${product.id}/delete/`;
+                        document.getElementById('detail-actions').style.display = 'block';
+                    });
+            });
+        }
+        
+        // Search functionality
+        const searchInputs = ['code', 'name'];
+        searchInputs.forEach(field => {
+            document.getElementById(`product-search-${field}`)?.addEventListener('change', function() {
+                // Fetch filtered data
+            });
+        });
+    });
+</script>
+
+{% endblock %}

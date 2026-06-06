@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>System Settings</h2>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <p>System settings management is available. This section allows superusers to configure system-wide settings.</p>
+        </div>
+        <div class="list-group">
+            <a href="{% url 'system_settings' %}" class="list-group-item list-group-item-action">General Settings</a>
+            <a href="{% url 'user_management' %}" class="list-group-item list-group-item-action">User Management</a>
+            <a href="{% url 'branch_management' %}" class="list-group-item list-group-item-action">Branch Configuration</a>
+            <a href="{% url 'backup_restore' %}" class="list-group-item list-group-item-action">Backup & Restore</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,16 +1,15 @@
 import json
-
-import json
-
 from django.views.generic import TemplateView, CreateView, UpdateView, DetailView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.http import JsonResponse, HttpResponseRedirect
 from django.urls import reverse_lazy
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from .models import Member
+from .forms import MemberForm
 from erp.utils.tabulator import TabulatorGrid
 from erp.utils.middleware import get_current_user, get_current_ip
 from django.core.paginator import Paginator
-import json
 
 class MemberListView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     permission_required = 'members.view_member'
@@ -75,9 +74,19 @@ class MemberDetailJsonView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'members.view_member'
 
     def get(self, request, pk):
-        member = Member.objects.filter(pk=pk, is_deleted=False).select_related('branch', 'created_by').first()
+        queryset = Member.objects.filter(pk=pk, is_deleted=False).select_related('branch', 'created_by')
+        
+        # Security: Filter by branch for non-superusers
+        if not request.user.is_superuser:
+            if request.user.branch:
+                queryset = queryset.filter(branch=request.user.branch)
+            else:
+                return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        member = queryset.first()
         if not member:
             return JsonResponse({'error': 'Member not found'}, status=404)
+        
         return JsonResponse({
             'id': member.id,
             'member_id': member.member_id,
@@ -104,33 +113,58 @@ class MemberDetailJsonView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
 class MemberCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = Member
-    fields = [
-        'branch', 'member_id', 'name', 'father_name', 'mother_name', 'spouse_name',
-        'gender', 'marital_status', 'date_of_birth', 'nid', 'phone', 'email',
-        'present_address', 'permanent_address', 'photo',
-    ]
+    form_class = MemberForm
     template_name = 'members/form.html'
     success_url = reverse_lazy('member_list')
     permission_required = 'members.add_member'
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        return super().form_valid(form)
 
 class MemberUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Member
-    fields = [
-        'branch', 'member_id', 'name', 'father_name', 'mother_name', 'spouse_name',
-        'gender', 'marital_status', 'date_of_birth', 'nid', 'phone', 'email',
-        'present_address', 'permanent_address', 'photo',
-    ]
+    form_class = MemberForm
     template_name = 'members/form.html'
     success_url = reverse_lazy('member_list')
     permission_required = 'members.change_member'
+    
+    def get_object(self, queryset=None):
+        """Override to ensure user can only edit members in their branch"""
+        obj = super().get_object(queryset)
+        if not self.request.user.is_superuser and obj.branch != self.request.user.branch:
+            raise PermissionError("You cannot edit members from other branches")
+        return obj
 
 class MemberDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Member
     template_name = 'members/confirm_delete.html'
     success_url = reverse_lazy('member_list')
     permission_required = 'members.delete_member'
+    
+    def get_object(self, queryset=None):
+        """Override to ensure user can only delete members in their branch"""
+        obj = super().get_object(queryset)
+        if not self.request.user.is_superuser and obj.branch != self.request.user.branch:
+            raise PermissionError("You cannot delete members from other branches")
+        return obj
+    
+    def delete(self, request, *args, **kwargs):
+        """Override to use soft delete instead of hard delete"""
+        self.object = self.get_object()
+        self.object.is_deleted = True
+        self.object.deleted_at = timezone.now()
+        self.object.save()
+        return HttpResponseRedirect(self.get_success_url())
 
 class MemberDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Member
     template_name = 'members/detail.html'
     permission_required = 'members.view_member'
+    
+    def get_object(self, queryset=None):
+        """Override to ensure user can only view members in their branch"""
+        obj = super().get_object(queryset)
+        if not self.request.user.is_superuser and obj.branch != self.request.user.branch:
+            raise PermissionError("You cannot view members from other branches")
+        return obj

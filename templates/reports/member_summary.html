@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Member Summary Report</h2>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="alert alert-info">
+                    <strong>Total Members:</strong><br>
+                    <h3>{{ context.total_members }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="alert alert-success">
+                    <strong>Active Members:</strong><br>
+                    <h3>{{ context.active_members }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="alert alert-warning">
+                    <strong>Inactive Members:</strong><br>
+                    <h3>{{ context.inactive_members }}</h3>
+                </div>
+            </div>
+        </div>
+        <a href="{% url 'report_list' %}" class="btn btn-secondary">Back to Reports</a>
+    </div>
+</div>
+{% endblock %}

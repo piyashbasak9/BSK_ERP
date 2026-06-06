@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="master-detail-container">
+    <!-- Left Column: Branch List -->
+    <div class="master-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Branch List</h5>
+                <a class="btn btn-success btn-sm" href="{% url 'branch_add' %}">+ Add New Branch</a>
+            </div>
+            <div class="search-controls">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Code</span>
+                    <input id="branch-search-code" type="search" class="form-control" placeholder="Branch Code">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Name</span>
+                    <input id="branch-search-name" type="search" class="form-control" placeholder="Branch Name">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Phone</span>
+                    <input id="branch-search-phone" type="search" class="form-control" placeholder="Phone Number">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="grid-container" id="branch-grid">
+                    {% if initial_branches %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in initial_branches %}
+                                <tr style="cursor: pointer;">
+                                    <td>{{ b.code }}</td>
+                                    <td>{{ b.name }}</td>
+                                    <td>{{ b.phone }}</td>
+                                    <td>{{ b.is_active }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+                <!-- Pagination Controls -->
+                <nav id="pagination-nav" class="mt-3" style="display: none;">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prev-page-item">
+                            <a class="page-link" href="#" id="prev-page-btn">Previous</a>
+                        </li>
+                        <li class="page-item active" id="current-page-item">
+                            <span class="page-link" id="current-page-text">Page 1</span>
+                        </li>
+                        <li class="page-item" id="next-page-item">
+                            <a class="page-link" href="#" id="next-page-btn">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Branch Detail -->
+    <div class="detail-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Branch Details</h5>
+                <div class="btn-group" role="group" aria-label="Branch actions">
+                    <a id="branch-detail-edit-btn" class="btn btn-warning btn-sm disabled" href="#" aria-disabled="true">Edit</a>
+                    <a id="branch-detail-delete-btn" class="btn btn-danger btn-sm disabled" href="#" aria-disabled="true">Delete</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="detail-container" id="branch-detail-panel">
+                    <p class="text-muted text-center" style="padding: 40px 20px;">Select a branch from the list to view details.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<template id="branch-detail-template">
+{% include 'branches/branch_detail.html' %}
+</template>
+
+<style>
+    .app-footer { display: none !important; }
+</style>
+
+<script type="application/json" id="branch-columns-json">{{ columns_json|safe }}</script>
+<script type="application/json" id="branch-initial-json">{{ initial_data_json|safe }}</script>
+
+<script>
+    const columns = JSON.parse(document.getElementById('branch-columns-json').textContent || '[]');
+    const searchCode = document.getElementById('branch-search-code');
+    const searchName = document.getElementById('branch-search-name');
+    const searchPhone = document.getElementById('branch-search-phone');
+    const detailPanel = document.getElementById('branch-detail-panel');
+    const editButton = document.getElementById('branch-detail-edit-btn');
+    const deleteButton = document.getElementById('branch-detail-delete-btn');
+    let searchTimer;
+
+    const detailTemplate = document.getElementById('branch-detail-template');
+
+    function setDetailButtons(branchId) {
+        if (!branchId) {
+            editButton.classList.add('disabled');
+            editButton.setAttribute('aria-disabled', 'true');
+            editButton.href = '#';
+            deleteButton.classList.add('disabled');
+            deleteButton.setAttribute('aria-disabled', 'true');
+            deleteButton.href = '#';
+            return;
+        }
+
+        editButton.classList.remove('disabled');
+        editButton.removeAttribute('aria-disabled');
+        editButton.href = `/branches/${branchId}/edit/`;
+        deleteButton.classList.remove('disabled');
+        deleteButton.removeAttribute('aria-disabled');
+        deleteButton.href = `/branches/${branchId}/delete/`;
+    }
+
+    function openInPopup(title, url) {
+        const modalEl = document.getElementById('genericModal');
+        if (!modalEl) {
+            window.location.href = url;
+            return;
+        }
+
+        const modalTitle = modalEl.querySelector('.modal-title');
+        const modalBody = modalEl.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(modalEl);
+
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        modal.show();
+
+        fetch(url, {credentials: 'same-origin'})
+            .then(r => r.text())
+            .then(text => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || text);
+            })
+            .catch(err => {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load popup content.</div>';
+                console.error('Popup load error', err);
+            });
+    }
+
+    window.addEventListener('load', function() {
+        editButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (editButton.classList.contains('disabled')) return;
+            openInPopup('Edit Branch', editButton.href);
+        });
+
+        deleteButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (deleteButton.classList.contains('disabled')) return;
+            openInPopup('Delete Branch', deleteButton.href);
+        });
+    });
+
+    function renderDetailPanel(data) {
+        const clone = detailTemplate.content.firstElementChild.cloneNode(true);
+        clone.querySelectorAll('[data-field]').forEach(el => {
+            const key = el.dataset.field;
+            el.textContent = data[key] || '—';
+        });
+        return clone;
+    }
+
+    function loadBranchDetail(branchId) {
+        fetch(`/branches/${branchId}/json/`, {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => {
+                detailPanel.innerHTML = '';
+                detailPanel.appendChild(renderDetailPanel(data));
+                setDetailButtons(data.id);
+            })
+            .catch(err => {
+                console.error('Detail fetch error', err);
+                detailPanel.innerHTML = '<p class="text-danger">Error loading branch details.</p>';
+                setDetailButtons(null);
+            });
+    }
+
+    let branchGrid = null;
+    if (typeof Tabulator === 'undefined') {
+        console.warn('Tabulator not loaded; using simple client-side fallback grid.');
+
+        function MiniGrid(selector, options) {
+            this.container = document.querySelector(selector);
+            this.columns = options.columns || [];
+            this.rowClick = options.rowClick;
+            this.ajaxURL = options.ajaxURL || '/branches/data/';
+            this.currentPage = 1;
+            this.lastPage = 1;
+            this.currentParams = {};
+        }
+
+        MiniGrid.prototype.render = function(rows, paginationInfo) {
+            if (!this.container) return;
+            let html = '<table class="table table-sm mb-0"><thead><tr>';
+            const cols = (this.columns && this.columns.length) ? this.columns : (rows[0] ? Object.keys(rows[0]).map(k=>({field:k,title:k})) : []);
+            cols.forEach(c => { html += `<th>${c.title || c.field}</th>`; });
+            html += '</tr></thead><tbody>';
+            rows.forEach(r => {
+                html += '<tr data-id="' + (r.id || r.code || '') + '" style="cursor: pointer;">';
+                cols.forEach(c => {
+                    const v = r[c.field] !== undefined ? r[c.field] : '';
+                    html += '<td>' + (v === null ? '' : String(v)) + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            this.container.innerHTML = html;
+            
+            if (paginationInfo) {
+                this.currentPage = paginationInfo.current_page || 1;
+                this.lastPage = paginationInfo.last_page || 1;
+                this.updatePaginationUI();
+            }
+            
+            const self = this;
+            Array.from(this.container.querySelectorAll('tbody tr')).forEach(function(tr) {
+                tr.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    if (self.rowClick && id) {
+                        self.rowClick(null, {getData: ()=>({id: id})});
+                    }
+                });
+            });
+        };
+
+        MiniGrid.prototype.updatePaginationUI = function() {
+            const paginationNav = document.getElementById('pagination-nav');
+            const prevBtn = document.getElementById('prev-page-btn');
+            const nextBtn = document.getElementById('next-page-btn');
+            const currentPageText = document.getElementById('current-page-text');
+            const prevItem = document.getElementById('prev-page-item');
+            const nextItem = document.getElementById('next-page-item');
+            
+            if (!paginationNav) return;
+            if (this.lastPage <= 1) {
+                paginationNav.style.display = 'none';
+                return;
+            }
+            
+            paginationNav.style.display = 'block';
+            currentPageText.textContent = `Page ${this.currentPage}`;
+            
+            if (this.currentPage <= 1) {
+                prevItem.classList.add('disabled');
+            } else {
+                prevItem.classList.remove('disabled');
+            }
+            
+            if (this.currentPage >= this.lastPage) {
+                nextItem.classList.add('disabled');
+            } else {
+                nextItem.classList.remove('disabled');
+            }
+        };
+
+        MiniGrid.prototype.setData = function(url, params) {
+            this.currentParams = params || {};
+            this.currentPage = params.page || 1;
+            const q = new URLSearchParams(params || {}).toString();
+            const fetchUrl = url ? (url + (q ? ('?' + q) : '')) : this.ajaxURL + (q ? ('?' + q) : '');
+            fetch(fetchUrl, {credentials: 'same-origin'})
+                .then(function(r){ return r.json(); })
+                .then(function(json){
+                    const rows = json && json.data ? json.data : json;
+                    this.render(rows || [], {
+                        current_page: json.current_page || 1,
+                        last_page: json.last_page || 1
+                    });
+                }.bind(this))
+                .catch(function(err){
+                    console.error('MiniGrid fetch error', err);
+                });
+        };
+
+        branchGrid = new MiniGrid('#branch-grid', {
+            columns: columns,
+            ajaxURL: '/branches/data/',
+            rowClick: function(e, row) {
+                const id = row.getData().id;
+                loadBranchDetail(id);
+            }
+        });
+        
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+        
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (branchGrid.currentPage > 1) {
+                    const params = Object.assign({}, branchGrid.currentParams, {page: branchGrid.currentPage - 1});
+                    branchGrid.setData(branchGrid.ajaxURL, params);
+                }
+            });
+        }
+        
+        if (nextPageBtn) {
+            nextPageBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (branchGrid.currentPage < branchGrid.lastPage) {
+                    const params = Object.assign({}, branchGrid.currentParams, {page: branchGrid.currentPage + 1});
+                    branchGrid.setData(branchGrid.ajaxURL, params);
+                }
+            });
+        }
+        
+        try {
+            const initial = JSON.parse(document.getElementById('branch-initial-json')?.textContent || 'null');
+            if (initial && initial.data) {
+                branchGrid.render(initial.data, {
+                    current_page: initial.current_page || 1,
+                    last_page: initial.last_page || 1
+                });
+                if (initial.data.length > 0) {
+                    loadBranchDetail(initial.data[0].id);
+                }
+            } else {
+                branchGrid.setData('/branches/data/', {page:1, size:20});
+            }
+        } catch (e) {
+            branchGrid.setData('/branches/data/', {page:1, size:20});
+        }
+
+        function miniTriggerSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                const codeVal = (searchCode && searchCode.value) ? searchCode.value.trim() : '';
+                const nameVal = (searchName && searchName.value) ? searchName.value.trim() : '';
+                const phoneVal = (searchPhone && searchPhone.value) ? searchPhone.value.trim() : '';
+                branchGrid.setData('/branches/data/', { code: codeVal, name: nameVal, phone: phoneVal, page: 1 });
+            }, 300);
+        }
+
+        [searchCode, searchName, searchPhone].forEach(function(el) {
+            if (el) el.addEventListener('keyup', miniTriggerSearch);
+        });
+    }
+</script>
+{% endblock %}

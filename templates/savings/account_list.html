@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{% if branch_missing %}
+<div class="alert alert-warning">Your account does not have a branch assigned. Assign a branch to see branch-specific accounts.</div>
+{% endif %}
+
+<div class="master-detail-container">
+    <!-- Left Column: Savings Accounts List -->
+    <div class="master-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Savings Accounts</h5>
+                <a class="btn btn-success btn-sm" href="{% url 'savings_account_add' %}">+ Open Account</a>
+            </div>
+            <div class="search-controls">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Account No</span>
+                    <input id="account-search-no" type="search" class="form-control" placeholder="Account Number">
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">By Member</span>
+                    <input id="account-search-member" type="search" class="form-control" placeholder="Member Name">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="grid-container" id="account-grid">
+                    {% if initial_accounts %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Account No</th>
+                                <th>Member</th>
+                                <th>Product</th>
+                                <th>Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in initial_accounts %}
+                                <tr style="cursor: pointer;">
+                                    <td>{{ a.account_no }}</td>
+                                    <td>{{ a.member_name }}</td>
+                                    <td>{{ a.product_name }}</td>
+                                    <td>₹{{ a.current_balance }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Account Details -->
+    <div class="detail-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Account Details</h5>
+                <div class="btn-group" id="detail-actions" style="display: none;">
+                    <a id="edit-btn" class="btn btn-primary btn-sm" href="#">Edit</a>
+                    <a id="delete-btn" class="btn btn-danger btn-sm" href="#">Delete</a>
+                </div>
+            </div>
+            <div class="card-body" id="detail-content">
+                <p class="text-muted">Select an account to view details</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize grid and detail view
+        const gridContainer = document.getElementById('account-grid');
+        if (gridContainer && typeof Tabulator !== 'undefined') {
+            const columns = {{ columns_json|safe }};
+            const initialData = {{ initial_data_json|safe }};
+            
+            const table = new Tabulator(gridContainer, {
+                data: initialData.data,
+                columns: columns,
+                layout: 'fitColumns',
+                pagination: 'remote',
+                paginationSize: 20,
+            });
+            
+            table.on('rowClick', function(e, row) {
+                const data = row.getData();
+                fetch(`/savings/accounts/${data.id}/json/`)
+                    .then(r => r.json())
+                    .then(account => {
+                        let transactionHTML = '<h6>Recent Transactions</h6><table class="table table-sm">';
+                        account.transactions.forEach(t => {
+                            transactionHTML += `<tr><td>${t.date}</td><td>${t.type}</td><td>₹${t.amount}</td><td>₹${t.balance}</td></tr>`;
+                        });
+                        transactionHTML += '</table>';
+                        
+                        document.getElementById('detail-content').innerHTML = `
+                            <dl class="row">
+                                <dt class="col-sm-4">Account No</dt>
+                                <dd class="col-sm-8">${account.account_no}</dd>
+                                <dt class="col-sm-4">Member</dt>
+                                <dd class="col-sm-8">${account.member}</dd>
+                                <dt class="col-sm-4">Product</dt>
+                                <dd class="col-sm-8">${account.product}</dd>
+                                <dt class="col-sm-4">Opening Date</dt>
+                                <dd class="col-sm-8">${account.opening_date}</dd>
+                                <dt class="col-sm-4">Current Balance</dt>
+                                <dd class="col-sm-8"><strong>₹${account.current_balance}</strong></dd>
+                                <dt class="col-sm-4">Status</dt>
+                                <dd class="col-sm-8">${account.is_active}</dd>
+                            </dl>
+                            ${transactionHTML}
+                        `;
+                        document.getElementById('edit-btn').href = `/savings/accounts/${account.id}/edit/`;
+                        document.getElementById('delete-btn').href = `/savings/accounts/${account.id}/delete/`;
+                        document.getElementById('detail-actions').style.display = 'block';
+                    });
+            });
+        }
+    });
+</script>
+
+{% endblock %}

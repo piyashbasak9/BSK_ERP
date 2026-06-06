@@ -1,3 +1,30 @@
 from django.urls import path
+from . import views
 
-urlpatterns = []
+urlpatterns = [
+    # Loan Products
+    path('products/', views.LoanProductListView.as_view(), name='loans_product_list'),
+    path('products/data/', views.LoanProductGridDataView.as_view(), name='loans_product_data'),
+    path('products/add/', views.LoanProductCreateView.as_view(), name='loans_product_add'),
+    path('products/<int:pk>/edit/', views.LoanProductUpdateView.as_view(), name='loans_product_edit'),
+    path('products/<int:pk>/delete/', views.LoanProductDeleteView.as_view(), name='loans_product_delete'),
+    path('products/<int:pk>/json/', views.LoanProductDetailJsonView.as_view(), name='loans_product_detail_json'),
+    
+    # Loan Applications
+    path('applications/', views.LoanApplicationListView.as_view(), name='loans_application_list'),
+    path('applications/data/', views.LoanApplicationGridDataView.as_view(), name='loans_application_data'),
+    path('applications/add/', views.LoanApplicationCreateView.as_view(), name='loans_application_add'),
+    path('applications/<int:pk>/edit/', views.LoanApplicationUpdateView.as_view(), name='loans_application_edit'),
+    path('applications/<int:pk>/delete/', views.LoanApplicationDeleteView.as_view(), name='loans_application_delete'),
+    path('applications/<int:pk>/json/', views.LoanApplicationDetailJsonView.as_view(), name='loans_application_detail_json'),
+    
+    # Loan Disbursements
+    path('disbursements/', views.LoanDisbursementListView.as_view(), name='loans_disbursement_list'),
+    path('disbursements/data/', views.LoanDisbursementGridDataView.as_view(), name='loans_disbursement_data'),
+    path('disbursements/add/', views.LoanDisbursementCreateView.as_view(), name='loans_disbursement_add'),
+    
+    # Loan Installment Schedules
+    path('schedules/', views.LoanInstallmentScheduleListView.as_view(), name='loans_schedule_list'),
+    path('schedules/data/', views.LoanInstallmentScheduleGridDataView.as_view(), name='loans_schedule_data'),
+    path('schedules/<int:pk>/edit/', views.LoanInstallmentScheduleUpdateView.as_view(), name='loans_schedule_edit'),
+]
