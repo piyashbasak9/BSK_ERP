@@ -1,41 +1,102 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h3>Loan Applications</h3>
-        <a href="{% url 'loan_application_add' %}" class="btn btn-success btn-sm">+ New Application</a>
+<div class="master-detail-container">
+    <div class="master-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Loan Applications</h5>
+                <a class="btn btn-success btn-sm" href="{% url 'loans_application_add' %}">+ New Application</a>
+            </div>
+            <div class="search-controls p-3">
+                <div class="row g-2">
+                    <div class="col-sm-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Member</span>
+                            <input id="application-search-member" type="search" class="form-control" placeholder="Search by member">
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Status</span>
+                            <input id="application-search-status" type="search" class="form-control" placeholder="Search by status">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="application-grid"></div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Member</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Applied Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for app in loan_applications %}
-                    <tr>
-                        <td>{{ app.member.name }}</td>
-                        <td>{{ app.applied_amount }}</td>
-                        <td><span class="badge bg-{% if app.status == 'approved' %}success{% elif app.status == 'pending' %}warning{% elif app.status == 'rejected' %}danger{% endif %}">{{ app.get_status_display }}</span></td>
-                        <td>{{ app.applied_date }}</td>
-                        <td>
-                            <a href="{% url 'loan_application_edit' pk=app.pk %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'loan_application_delete' pk=app.pk %}" class="btn btn-sm btn-danger">Delete</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted">No applications found</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <div class="detail-column">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Application Details</h5>
+                <div class="btn-group" id="application-detail-actions" style="display: none;">
+                    <a id="application-edit-btn" class="btn btn-primary btn-sm" href="#">Edit</a>
+                    <a id="application-delete-btn" class="btn btn-danger btn-sm" href="#">Delete</a>
+                </div>
+            </div>
+            <div class="card-body" id="application-detail-content">
+                <p class="text-muted">Select an application to view details</p>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const columns = {{ columns_json|safe }};
+        const initialData = {{ initial_data_json|safe }};
+        const grid = new Tabulator('#application-grid', {
+            data: initialData.data,
+            ajaxURL: '{% url "loans_application_data" %}',
+            ajaxConfig: 'GET',
+            pagination: 'remote',
+            paginationSize: 20,
+            paginationDataSent: {page: 'page', size: 'size'},
+            paginationDataReceived: {last_page: 'last_page'},
+            layout: 'fitColumns',
+            columns: columns,
+            ajaxResponse: function(url, params, response) {
+                return response.data || [];
+            },
+            rowClick: function(e, row) {
+                const application = row.getData();
+                fetch(`/loans/applications/${application.id}/json/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const detail = document.getElementById('application-detail-content');
+                        detail.innerHTML = `
+                            <dl class="row">
+                                <dt class="col-sm-4">Member</dt><dd class="col-sm-8">${data.member}</dd>
+                                <dt class="col-sm-4">Product</dt><dd class="col-sm-8">${data.product}</dd>
+                                <dt class="col-sm-4">Applied Amount</dt><dd class="col-sm-8">${data.applied_amount}</dd>
+                                <dt class="col-sm-4">Approved Amount</dt><dd class="col-sm-8">${data.approved_amount}</dd>
+                                <dt class="col-sm-4">Status</dt><dd class="col-sm-8">${data.status}</dd>
+                                <dt class="col-sm-4">Applied Date</dt><dd class="col-sm-8">${data.applied_date}</dd>
+                                <dt class="col-sm-4">Purpose</dt><dd class="col-sm-8">${data.purpose}</dd>
+                            </dl>
+                        `;
+                        const editBtn = document.getElementById('application-edit-btn');
+                        const deleteBtn = document.getElementById('application-delete-btn');
+                        editBtn.href = `/loans/applications/${data.id}/edit/`;
+                        deleteBtn.href = `/loans/applications/${data.id}/delete/`;
+                        document.getElementById('application-detail-actions').style.display = 'flex';
+                    });
+            }
+        });
+
+        document.getElementById('application-search-member').addEventListener('input', function() {
+            grid.setFilter('member_name', 'like', this.value);
+        });
+        document.getElementById('application-search-status').addEventListener('input', function() {
+            grid.setFilter('status', 'like', this.value);
+        });
+    });
+</script>
 {% endblock %}

@@ -23,12 +23,16 @@ class LoanProductListView(LoginRequiredMixin, PermissionRequiredMixin, TemplateV
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['columns'] = [
-            {"title": "Code", "field": "code", "width": 100},
-            {"title": "Product Name", "field": "name", "sorter": "string", "widthGrow": 2},
+            {"title": "Code", "field": "code", "width": 120},
+            {"title": "Product Name", "field": "name", "sorter": "string", "width": 180},
             {"title": "Interest Rate", "field": "interest_rate", "width": 120},
+            {"title": "Min Amount", "field": "min_amount", "width": 120},
             {"title": "Max Amount", "field": "max_amount", "width": 120},
             {"title": "Duration", "field": "duration_months", "width": 100},
-            {"title": "Status", "field": "is_active", "width": 80},
+            {"title": "Frequency", "field": "installment_frequency", "width": 120},
+            {"title": "Processing Fee", "field": "processing_fee", "width": 120},
+            {"title": "Late Penalty", "field": "late_penalty_rate", "width": 120},
+            {"title": "Status", "field": "is_active", "width": 100},
         ]
         context['columns_json'] = json.dumps(context['columns'])
         
@@ -37,7 +41,8 @@ class LoanProductListView(LoginRequiredMixin, PermissionRequiredMixin, TemplateV
         page_obj = paginator.get_page(1)
         
         initial_list = list(page_obj.object_list.values(
-            'id', 'code', 'name', 'interest_rate', 'max_amount', 'duration_months', 'is_active'
+            'id', 'code', 'name', 'interest_rate', 'min_amount', 'max_amount',
+            'duration_months', 'installment_frequency', 'processing_fee', 'late_penalty_rate', 'is_active'
         ))
         for item in initial_list:
             item['is_active'] = 'Active' if item['is_active'] else 'Inactive'

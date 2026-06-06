@@ -36,7 +36,7 @@ class RBACMiddleware(MiddlewareMixin):
             'savings_account_list': 'savings.view_savingsaccount',
             'savings_deposit': 'savings.add_savingstransaction',
             'savings_withdraw': 'savings.add_savingstransaction',
-            'loan_application_list': 'loans.view_loanapplication',
+            'loans_application_list': 'loans.view_loanapplication',
             'loan_approve': 'loans.change_loanapplication',
             'loan_disburse': 'loans.disburse_loan',
             'collection_entry': 'collections.add_collection',

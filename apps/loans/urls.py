@@ -1,7 +1,9 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
+    path('', RedirectView.as_view(pattern_name='loans_product_list', permanent=False), name='loans_index'),
     # Loan Products
     path('products/', views.LoanProductListView.as_view(), name='loans_product_list'),
     path('products/data/', views.LoanProductGridDataView.as_view(), name='loans_product_data'),

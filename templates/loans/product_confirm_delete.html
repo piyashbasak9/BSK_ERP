@@ -3,9 +3,9 @@
 {% block content %}
 <h2>Confirm Delete</h2>
 <p>Are you sure you want to delete this loan product <strong>{{ object.name }}</strong>?</p>
-<form method="post" action="{% url 'loan_product_delete' pk=object.pk %}">
+<form method="post" action="{% url 'loans_product_delete' pk=object.pk %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-danger">Delete</button>
-    <a href="{% url 'loan_product_list' %}" class="btn btn-secondary">Cancel</a>
+    <a href="{% url 'loans_product_list' %}" class="btn btn-secondary">Cancel</a>
 </form>
 {% endblock %}

@@ -1,45 +1,339 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
+<div class="card loan-product-card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h3>Loan Products</h3>
-        <a href="{% url 'loan_product_add' %}" class="btn btn-success btn-sm">+ Add Product</a>
+        <h5 class="mb-0">Loan Products</h5>
+        <a class="btn btn-success btn-sm" href="{% url 'loans_product_add' %}">+ Add Product</a>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+    <div class="search-controls p-3">
+        <div class="d-flex gap-2" style="flex-wrap: nowrap;">
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Code</span>
+                <input id="product-search-code" type="search" class="form-control" placeholder="Search by code">
+            </div>
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Name</span>
+                <input id="product-search-name" type="search" class="form-control" placeholder="Search by name">
+            </div>
+        </div>
+    </div>
+    <div class="card-body d-flex flex-column" style="min-height: 0;">
+        <div class="table-responsive loan-product-table-container flex-fill" style="min-height: 0; overflow-y: auto;">
+            <table class="table table-sm table-hover" id="product-grid-table">
                 <thead>
                     <tr>
                         <th>Code</th>
                         <th>Name</th>
                         <th>Interest Rate</th>
+                        <th>Min Amount</th>
                         <th>Max Amount</th>
                         <th>Duration</th>
+                        <th>Frequency</th>
+                        <th>Processing Fee</th>
+                        <th>Late Penalty</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for product in loan_products %}
+                <tbody id="product-grid-body">
                     <tr>
-                        <td>{{ product.code }}</td>
-                        <td>{{ product.name }}</td>
-                        <td>{{ product.interest_rate }}%</td>
-                        <td>{{ product.max_amount }}</td>
-                        <td>{{ product.duration_months }} months</td>
-                        <td>{% if product.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-danger">Inactive</span>{% endif %}</td>
-                        <td>
-                            <a href="{% url 'loan_product_edit' pk=product.pk %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'loan_product_delete' pk=product.pk %}" class="btn btn-sm btn-danger">Delete</a>
-                        </td>
+                        <td colspan="11" class="text-center text-muted py-3">Loading loan products...</td>
                     </tr>
-                    {% empty %}
-                    <tr><td colspan="7" class="text-center text-muted">No products found</td></tr>
-                    {% endfor %}
                 </tbody>
             </table>
         </div>
+        <nav id="pagination-container" class="mt-3 flex-shrink-0">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
     </div>
 </div>
+
+<style>
+    .app-footer { display: none !important; }
+    .container-fluid.content-wrapper,
+    main,
+    .row,
+    .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .loan-product-card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+    }
+    .loan-product-card .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .loan-product-table-container {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .loan-product-table-container table {
+        margin-bottom: 0;
+    }
+    .table-hover tbody tr {
+        cursor: pointer;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="product-initial-json">{{ initial_data_json|safe }}</script>
+<script>
+    const tableBody = document.getElementById('product-grid-body');
+    const paginationList = document.getElementById('pagination-list');
+    const searchCode = document.getElementById('product-search-code');
+    const searchName = document.getElementById('product-search-name');
+    const genericModal = document.getElementById('genericModal');
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimer;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderProductTable(products) {
+        if (!products || products.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No products found.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        products.forEach(product => {
+            html += `
+                <tr>
+                    <td>${escapeHtml(product.code)}</td>
+                    <td>${escapeHtml(product.name)}</td>
+                    <td>${escapeHtml(product.interest_rate)}</td>
+                    <td>${escapeHtml(product.min_amount)}</td>
+                    <td>${escapeHtml(product.max_amount)}</td>
+                    <td>${escapeHtml(product.duration_months)}</td>
+                    <td>${escapeHtml(product.installment_frequency)}</td>
+                    <td>${escapeHtml(product.processing_fee)}</td>
+                    <td>${escapeHtml(product.late_penalty_rate)}</td>
+                    <td>${escapeHtml(product.is_active)}</td>
+                    <td>
+                        <a href="/loans/products/${product.id}/edit/" class="btn btn-sm btn-warning me-1 product-edit-link">Edit</a>
+                        <a href="/loans/products/${product.id}/delete/" class="btn btn-sm btn-danger product-delete-link">Delete</a>
+                    </td>
+                </tr>
+            `;
+        });
+        tableBody.innerHTML = html;
+        attachProductActionHandlers();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+
+        let paginationHtml = '';
+        paginationHtml += `
+            <li class="page-item ${current === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+            </li>
+        `;
+
+        let startPage = Math.max(1, current - 2);
+        let endPage = Math.min(total, current + 2);
+        if (endPage - startPage < 4) {
+            if (startPage > 1) startPage = Math.max(1, endPage - 4);
+            if (endPage < total) endPage = Math.min(total, startPage + 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === current ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `;
+        }
+
+        paginationHtml += `
+            <li class="page-item ${current === total ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+            </li>
+        `;
+
+        paginationList.innerHTML = paginationHtml;
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                const pageNumber = parseInt(this.dataset.page, 10);
+                if (!Number.isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages && pageNumber !== currentPage) {
+                    loadProducts(pageNumber);
+                }
+            });
+        });
+    }
+
+    function loadProducts(page = 1) {
+        const code = searchCode.value.trim();
+        const name = searchName.value.trim();
+        const params = new URLSearchParams({
+            code: code,
+            name: name,
+            page: page,
+            size: 20
+        });
+
+        tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading...</td></tr>';
+        fetch(`{% url 'loans_product_data' %}?${params.toString()}`, {credentials: 'same-origin'})
+            .then(response => response.json())
+            .then(data => {
+                renderProductTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(error => {
+                console.error('Product list load error', error);
+                tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-3">Unable to load products.</td></tr>';
+                paginationList.innerHTML = '';
+            });
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            loadProducts(1);
+        }, 300);
+    }
+
+    function openProductModal(title, url) {
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        modal.show();
+
+        fetch(url, {credentials: 'same-origin'})
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => {
+                console.error('Product modal load error', err);
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
+    }
+
+    function attachProductActionHandlers() {
+        tableBody.querySelectorAll('.product-edit-link, .product-delete-link').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                openProductModal(this.classList.contains('product-delete-link') ? 'Delete Loan Product' : 'Edit Loan Product', this.href);
+            });
+        });
+    }
+
+    function handleProductModalSubmit(event) {
+        const form = event.target.closest('form');
+        if (!form || !genericModal || !genericModal.contains(form)) return;
+        event.preventDefault();
+
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = bootstrap.Modal.getInstance(genericModal);
+        const submitUrl = form.action;
+        const formData = new FormData(form);
+
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text().then(text => ({
+            status: response.status,
+            redirected: response.redirected,
+            url: response.url,
+            text: text
+        })))
+        .then(result => {
+            if (result.redirected || result.url !== submitUrl) {
+                if (modal) modal.hide();
+                loadProducts(currentPage);
+                return;
+            }
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(result.text, 'text/html');
+            const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+            const hasForm = !!doc.querySelector('form');
+            if (result.status === 200 && hasForm) {
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+            } else if (result.status >= 200 && result.status < 300) {
+                if (modal) modal.hide();
+                loadProducts(currentPage);
+            } else {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
+            }
+        })
+        .catch(err => {
+            console.error('Product modal submit error:', err);
+            if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
+        });
+    }
+
+    function initLoanProductPage() {
+        searchCode.addEventListener('keyup', handleSearch);
+        searchName.addEventListener('keyup', handleSearch);
+
+        if (genericModal) {
+            genericModal.addEventListener('submit', handleProductModalSubmit);
+        }
+
+        try {
+            const initial = JSON.parse(document.getElementById('product-initial-json').textContent || 'null');
+            if (initial && Array.isArray(initial.data)) {
+                renderProductTable(initial.data);
+                renderPagination(initial.current_page || 1, initial.last_page || 1);
+            } else {
+                loadProducts(1);
+            }
+        } catch (e) {
+            console.error('Failed to parse initial product data', e);
+            loadProducts(1);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initLoanProductPage);
+</script>
 {% endblock %}
