@@ -1,102 +1,330 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="master-detail-container">
-    <div class="master-column">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Loan Applications</h5>
-                <a class="btn btn-success btn-sm" href="{% url 'loans_application_add' %}">+ New Application</a>
+<div class="card loan-product-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Loan Applications</h5>
+        <a class="btn btn-success btn-sm" href="{% url 'loans_application_add' %}">+ Add Application</a>
+    </div>
+    <div class="search-controls p-3">
+        <div class="d-flex gap-2" style="flex-wrap: nowrap; overflow-x: auto;">
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Member ID</span>
+                <input id="application-search-member-id" type="search" class="form-control" placeholder="Search by member ID">
             </div>
-            <div class="search-controls p-3">
-                <div class="row g-2">
-                    <div class="col-sm-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">Member</span>
-                            <input id="application-search-member" type="search" class="form-control" placeholder="Search by member">
-                        </div>
-                    </div>
-                    <div class="col-sm-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">Status</span>
-                            <input id="application-search-status" type="search" class="form-control" placeholder="Search by status">
-                        </div>
-                    </div>
-                </div>
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Member</span>
+                <input id="application-search-member-name" type="search" class="form-control" placeholder="Search by member name">
             </div>
-            <div class="card-body">
-                <div id="application-grid"></div>
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Status</span>
+                <select id="application-search-status" class="form-select">
+                    <option value="">All statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="disbursed">Disbursed</option>
+                    <option value="closed">Closed</option>
+                </select>
             </div>
         </div>
     </div>
-
-    <div class="detail-column">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Application Details</h5>
-                <div class="btn-group" id="application-detail-actions" style="display: none;">
-                    <a id="application-edit-btn" class="btn btn-primary btn-sm" href="#">Edit</a>
-                    <a id="application-delete-btn" class="btn btn-danger btn-sm" href="#">Delete</a>
-                </div>
-            </div>
-            <div class="card-body" id="application-detail-content">
-                <p class="text-muted">Select an application to view details</p>
-            </div>
+    <div class="card-body d-flex flex-column" style="min-height: 0;">
+        <div class="table-responsive loan-product-table-container flex-fill" style="min-height: 0; overflow-y: auto;">
+            <table class="table table-sm table-hover" id="application-grid-table">
+                <thead>
+                    <tr>
+                        <th>Member ID</th>
+                        <th>Member</th>
+                        <th>Product</th>
+                        <th>Applied Amount</th>
+                        <th>Status</th>
+                        <th>Applied Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="application-grid-body">
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-3">Loading loan applications...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+        <nav id="pagination-container" class="mt-3 flex-shrink-0">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
     </div>
 </div>
+
+<style>
+    .app-footer { display: none !important; }
+    .container-fluid.content-wrapper,
+    main,
+    .row,
+    .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .loan-product-card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+    }
+    .loan-product-card .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .loan-product-table-container {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .loan-product-table-container table {
+        margin-bottom: 0;
+    }
+    .table-hover tbody tr {
+        cursor: pointer;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
+<script type="application/json" id="application-initial-json">{{ initial_data_json|safe }}</script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const columns = {{ columns_json|safe }};
-        const initialData = {{ initial_data_json|safe }};
-        const grid = new Tabulator('#application-grid', {
-            data: initialData.data,
-            ajaxURL: '{% url "loans_application_data" %}',
-            ajaxConfig: 'GET',
-            pagination: 'remote',
-            paginationSize: 20,
-            paginationDataSent: {page: 'page', size: 'size'},
-            paginationDataReceived: {last_page: 'last_page'},
-            layout: 'fitColumns',
-            columns: columns,
-            ajaxResponse: function(url, params, response) {
-                return response.data || [];
-            },
-            rowClick: function(e, row) {
-                const application = row.getData();
-                fetch(`/loans/applications/${application.id}/json/`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const detail = document.getElementById('application-detail-content');
-                        detail.innerHTML = `
-                            <dl class="row">
-                                <dt class="col-sm-4">Member</dt><dd class="col-sm-8">${data.member}</dd>
-                                <dt class="col-sm-4">Product</dt><dd class="col-sm-8">${data.product}</dd>
-                                <dt class="col-sm-4">Applied Amount</dt><dd class="col-sm-8">${data.applied_amount}</dd>
-                                <dt class="col-sm-4">Approved Amount</dt><dd class="col-sm-8">${data.approved_amount}</dd>
-                                <dt class="col-sm-4">Status</dt><dd class="col-sm-8">${data.status}</dd>
-                                <dt class="col-sm-4">Applied Date</dt><dd class="col-sm-8">${data.applied_date}</dd>
-                                <dt class="col-sm-4">Purpose</dt><dd class="col-sm-8">${data.purpose}</dd>
-                            </dl>
-                        `;
-                        const editBtn = document.getElementById('application-edit-btn');
-                        const deleteBtn = document.getElementById('application-delete-btn');
-                        editBtn.href = `/loans/applications/${data.id}/edit/`;
-                        deleteBtn.href = `/loans/applications/${data.id}/delete/`;
-                        document.getElementById('application-detail-actions').style.display = 'flex';
-                    });
-            }
+    const appTableBody = document.getElementById('application-grid-body');
+    const appPaginationList = document.getElementById('pagination-list');
+    const appSearchMemberId = document.getElementById('application-search-member-id');
+    const appSearchMemberName = document.getElementById('application-search-member-name');
+    const appSearchStatus = document.getElementById('application-search-status');
+    const genericModal = document.getElementById('genericModal');
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimer;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderApplicationTable(applications) {
+        if (!applications || applications.length === 0) {
+            appTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No applications found.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        applications.forEach(app => {
+            html += `
+                <tr>
+                    <td>${escapeHtml(app.member_id)}</td>
+                    <td>${escapeHtml(app.member_name)}</td>
+                    <td>${escapeHtml(app.product_name)}</td>
+                    <td>${escapeHtml(app.applied_amount)}</td>
+                    <td>${escapeHtml(app.status)}</td>
+                    <td>${escapeHtml(app.applied_date)}</td>
+                    <td>
+                        <a href="/loans/applications/${app.id}/edit/" class="btn btn-sm btn-warning me-1 application-edit-link">Edit</a>
+                        <a href="/loans/applications/${app.id}/delete/" class="btn btn-sm btn-danger application-delete-link">Delete</a>
+                    </td>
+                </tr>
+            `;
+        });
+        appTableBody.innerHTML = html;
+        attachApplicationActionHandlers();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+
+        if (total <= 1) {
+            appPaginationList.innerHTML = '';
+            return;
+        }
+
+        let paginationHtml = '';
+        paginationHtml += `
+            <li class="page-item ${current === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+            </li>
+        `;
+
+        let startPage = Math.max(1, current - 2);
+        let endPage = Math.min(total, current + 2);
+        if (endPage - startPage < 4) {
+            if (startPage > 1) startPage = Math.max(1, endPage - 4);
+            if (endPage < total) endPage = Math.min(total, startPage + 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === current ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `;
+        }
+
+        paginationHtml += `
+            <li class="page-item ${current === total ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+            </li>
+        `;
+
+        appPaginationList.innerHTML = paginationHtml;
+        appPaginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                const pageNumber = parseInt(this.dataset.page, 10);
+                if (!Number.isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages && pageNumber !== currentPage) {
+                    loadApplications(pageNumber);
+                }
+            });
+        });
+    }
+
+    function loadApplications(page = 1) {
+        currentPage = page;
+        const memberId = appSearchMemberId.value.trim();
+        const memberName = appSearchMemberName.value.trim();
+        const status = appSearchStatus.value.trim();
+        const params = new URLSearchParams({
+            member_id: memberId,
+            member_name: memberName,
+            status: status,
+            page: page,
+            size: 20
         });
 
-        document.getElementById('application-search-member').addEventListener('input', function() {
-            grid.setFilter('member_name', 'like', this.value);
+        appTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
+        fetch(`{% url 'loans_application_data' %}?${params.toString()}`, {credentials: 'same-origin'})
+            .then(response => response.json())
+            .then(data => {
+                renderApplicationTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(error => {
+                console.error('Application list load error', error);
+                appTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load applications.</td></tr>';
+                appPaginationList.innerHTML = '';
+            });
+    }
+
+    function openApplicationModal(title, url) {
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        modal.show();
+
+        fetch(url, {credentials: 'same-origin'})
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => {
+                console.error('Application modal load error', err);
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
+    }
+
+    function attachApplicationActionHandlers() {
+        appTableBody.querySelectorAll('.application-edit-link, .application-delete-link').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                const url = this.href;
+                const title = this.classList.contains('application-edit-link') ? 'Edit Application' : 'Delete Application';
+                openApplicationModal(title, url);
+            });
         });
-        document.getElementById('application-search-status').addEventListener('input', function() {
-            grid.setFilter('status', 'like', this.value);
-        });
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            loadApplications(1);
+        }, 300);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        appSearchMemberId.addEventListener('input', handleSearch);
+        appSearchMemberName.addEventListener('input', handleSearch);
+        appSearchStatus.addEventListener('input', handleSearch);
+        loadApplications(1);
+
+        if (genericModal) {
+            genericModal.addEventListener('submit', function(event) {
+                const form = event.target.closest('form');
+                if (!form) return;
+                event.preventDefault();
+
+                const modalBody = genericModal.querySelector('.modal-body');
+                const modalInstance = bootstrap.Modal.getInstance(genericModal);
+                const submitUrl = form.action;
+                const formData = new FormData(form);
+
+                fetch(submitUrl, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    redirect: 'manual'
+                })
+                .then(response => {
+                    if (response.status >= 300 && response.status < 400) {
+                        if (modalInstance) modalInstance.hide();
+                        loadApplications(currentPage);
+                        return null;
+                    }
+                    return response.text().then(text => ({status: response.status, text}));
+                })
+                .then(result => {
+                    if (!result) return;
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(result.text, 'text/html');
+                    const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                    const hasForm = !!doc.querySelector('form');
+                    if (result.status === 200 && hasForm) {
+                        modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+                    } else {
+                        if (modalInstance) modalInstance.hide();
+                        loadApplications(currentPage);
+                    }
+                })
+                .catch(err => {
+                    console.error('Application modal submit error', err);
+                    if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
+                });
+            });
+        }
     });
 </script>
 {% endblock %}

@@ -11,36 +11,152 @@
 </head>
 <body>
     <nav class="navbar navbar-dark navbar-expand-lg py-2">
-        <div class="container-fluid d-flex flex-wrap align-items-center gap-2">
-            <a class="navbar-brand mb-1" href="/">BSK ERP</a>
-            <div class="d-flex flex-wrap gap-1 align-items-center nav-links me-auto mb-1">
-                <a class="btn btn-outline-light btn-sm" href="/">Dashboard</a>
-                {% if perms.members.view_member %}
-                    <a class="btn btn-outline-light btn-sm" href="/members/">Members</a>
-                {% endif %}
-                {% if perms.loans.view_loanapplication %}
-                    <a class="btn btn-outline-light btn-sm" href="/loans/">Loans</a>
-                {% endif %}
-                {% if perms.savings.view_savingsaccount %}
-                    <a class="btn btn-outline-light btn-sm" href="/savings/">Savings</a>
-                {% endif %}
-                {% if perms.collections.add_collection %}
-                    <a class="btn btn-outline-light btn-sm" href="/collections/daily-sheet/">Collections</a>
-                {% endif %}
-                {% if perms.accounting.view_account %}
-                    <a class="btn btn-outline-light btn-sm" href="/accounting/">Accounting</a>
-                {% endif %}
-                {% if perms.reports.view_report %}
-                    <a class="btn btn-outline-light btn-sm" href="/reports/">Reports</a>
-                {% endif %}
-                {% if request.user.is_superuser %}
-                    <a class="btn btn-outline-light btn-sm" href="/settings/">System Settings</a>
-                    <a class="btn btn-outline-light btn-sm" href="/audit/logs/">Audit Logs</a>
-                {% endif %}
-            </div>
-            <div class="d-flex align-items-center gap-2 mb-1 user-info-row">
-                <span class="navbar-text text-white small">{{ request.user.username }} ({{ request.user.branch.name|default:"Head Office" }})</span>
-                <a href="/logout/" class="btn btn-sm btn-outline-light">Logout</a>
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">BSK ERP</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Dashboard</a>
+                    </li>
+
+                    {% if perms.branches.view_branch %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Branches
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/branches/">Branch List</a></li>
+                                <li><a class="dropdown-item" href="/branches/add/">Add Branch</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.members.view_member %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Members
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/members/">Member List</a></li>
+                                <li><a class="dropdown-item" href="/members/add/">Add Member</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.savings.view_savingsaccount %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Savings
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/savings/products/">Savings Products</a></li>
+                                <li><a class="dropdown-item" href="/savings/accounts/">Savings Accounts</a></li>
+                                <li><a class="dropdown-item" href="/savings/transactions/">Savings Transactions</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.loans.view_loanapplication %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Loans
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li class="dropend">
+                                    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Loan Products</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/loans/products/">Product List</a></li>
+                                        <li><a class="dropdown-item" href="/loans/products/add/">Add Product</a></li>
+                                    </ul>
+                                </li>
+                                <li class="dropend">
+                                    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Loan Applications</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/loans/applications/">Loan Application List</a></li>
+                                        <li><a class="dropdown-item" href="/loans/applications/add/">Add Loan Application</a></li>
+                                    </ul>
+                                </li>
+                                <li><a class="dropdown-item" href="/loans/disbursements/">Loan Disbursements</a></li>
+                                <li><a class="dropdown-item" href="/loans/schedules/">Loan Schedules</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.collections.view_collection or perms.collections.add_collection %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Collections
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/collections/sheets/">Daily Collection Sheets</a></li>
+                                <li><a class="dropdown-item" href="/collections/entries/">Collection Entries</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.accounting.view_account %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Accounting
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/accounting/accounts/">Accounts</a></li>
+                                <li><a class="dropdown-item" href="/accounting/entries/">Journal Entries</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.reports.view_report %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Reports
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/reports/">Report List</a></li>
+                                <li><a class="dropdown-item" href="/reports/member-summary/">Member Summary</a></li>
+                                <li><a class="dropdown-item" href="/reports/loan-summary/">Loan Summary</a></li>
+                                <li><a class="dropdown-item" href="/reports/savings-summary/">Savings Summary</a></li>
+                                <li><a class="dropdown-item" href="/reports/collection-summary/">Collection Summary</a></li>
+                                <li><a class="dropdown-item" href="/reports/account-balance/">Account Balance</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if perms.audit.view_auditlog or request.user.is_superuser %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Audit
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/audit/logs/">Logs</a></li>
+                                <li><a class="dropdown-item" href="/audit/activity/">Activity</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                System
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/settings/">Settings Dashboard</a></li>
+                                <li><a class="dropdown-item" href="/settings/system/">System Settings</a></li>
+                                <li><a class="dropdown-item" href="/settings/users/">Users</a></li>
+                                <li><a class="dropdown-item" href="/settings/branches/">Branches</a></li>
+                                <li><a class="dropdown-item" href="/settings/backup/">Backup / Restore</a></li>
+                                <li><a class="dropdown-item" href="/settings/audit/">Audit Settings</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex align-items-center gap-2 user-info-row">
+                    <span class="navbar-text text-white small">{{ request.user.username }} ({{ request.user.branch.name|default:"Head Office" }})</span>
+                    <a href="/logout/" class="btn btn-sm btn-outline-light">Logout</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -73,6 +189,16 @@
             window.addEventListener('DOMContentLoaded', setMasterDetailHeight);
             setTimeout(setMasterDetailHeight, 500);
         })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.dropdown').forEach(function(dropdown) {
+                dropdown.addEventListener('hide.bs.dropdown', function () {
+                    dropdown.querySelectorAll('.dropdown-menu.show').forEach(function(submenu) {
+                        submenu.classList.remove('show');
+                    });
+                });
+            });
+        });
     </script>
     {% include 'includes/generic_modal.html' %}
     {% block extra_js %}{% endblock %}

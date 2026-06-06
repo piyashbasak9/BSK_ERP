@@ -67,6 +67,15 @@ class LoanApplicationForm(forms.ModelForm):
             raise ValidationError('Application date cannot be in the future')
         return date
 
+    def save(self, commit=True):
+        application = super().save(commit=False)
+        product = self.cleaned_data.get('product')
+        if product is not None:
+            application.interest_rate_applied = product.interest_rate
+        if commit:
+            application.save()
+        return application
+
 
 class LoanApplicationApprovalForm(forms.ModelForm):
     """Form for approving loan applications"""

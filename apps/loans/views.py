@@ -5,6 +5,7 @@ from django.http import JsonResponse, HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
+from django.db.models import Q
 from .models import LoanProduct, LoanApplication, LoanDisbursement, LoanInstallmentSchedule
 from .forms import (
     LoanProductForm, LoanApplicationForm, LoanApplicationApprovalForm,
@@ -142,6 +143,7 @@ class LoanApplicationListView(LoginRequiredMixin, PermissionRequiredMixin, Templ
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['columns'] = [
+            {"title": "Member ID", "field": "member_id", "sorter": "string", "width": 120},
             {"title": "Member", "field": "member_name", "sorter": "string", "widthGrow": 2},
             {"title": "Product", "field": "product_name", "sorter": "string", "widthGrow": 1},
             {"title": "Applied Amount", "field": "applied_amount", "width": 120},
@@ -166,6 +168,7 @@ class LoanApplicationListView(LoginRequiredMixin, PermissionRequiredMixin, Templ
         for app in page_obj.object_list:
             initial_list.append({
                 'id': app.id,
+                'member_id': app.member.member_id,
                 'member_name': app.member.name,
                 'product_name': app.product.name,
                 'applied_amount': str(app.applied_amount),
@@ -196,20 +199,24 @@ class LoanApplicationGridDataView(LoginRequiredMixin, PermissionRequiredMixin, V
             else:
                 queryset = queryset.none()
         
-        member_q = request.GET.get('member_name', '').strip()
+        member_id_q = request.GET.get('member_id', '').strip()
+        member_name_q = request.GET.get('member_name', '').strip()
         status_q = request.GET.get('status', '').strip()
         
-        if member_q:
-            queryset = queryset.filter(member__name__icontains=member_q)
+        if member_id_q:
+            queryset = queryset.filter(member__member_id__icontains=member_id_q)
+        if member_name_q:
+            queryset = queryset.filter(member__name__icontains=member_name_q)
         if status_q:
             queryset = queryset.filter(status=status_q)
 
-        grid = TabulatorGrid(request.GET, queryset, search_fields=['member__name', 'status'])
+        grid = TabulatorGrid(request.GET, queryset, search_fields=['member__name', 'member__member_id', 'status'])
         resp = grid.get_response()
         
         for item in resp.get('data', []):
             app = next((a for a in queryset if a.id == item['id']), None)
             if app:
+                item['member_id'] = app.member.member_id
                 item['member_name'] = app.member.name
                 item['product_name'] = app.product.name
                 item['status'] = app.get_status_display()
