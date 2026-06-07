@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card loan-product-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Loan Installment Schedules</h5>
+    </div>
+    <div class="search-controls p-3">
+        <div class="d-flex gap-2" style="flex-wrap: nowrap;">
+            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+                <span class="input-group-text">Member</span>
+                <input id="schedule-search-member" type="search" class="form-control" placeholder="Search by member name">
+            </div>
+        </div>
+    </div>
+    <div class="card-body d-flex flex-column" style="min-height: 0;">
+        <div class="table-responsive loan-product-table-container flex-fill" style="min-height: 0; overflow-y: auto;">
+            <table class="table table-sm table-hover" id="schedule-grid-table">
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Installment #</th>
+                        <th>Due Date</th>
+                        <th>Total Due</th>
+                        <th>Paid</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-grid-body">
+                    <tr><td colspan="6" class="text-center text-muted py-3">Loading schedules...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav id="pagination-container" class="mt-3 flex-shrink-0">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
+    </div>
+</div>
+
+<style>
+    .app-footer { display: none !important; }
+    .container-fluid.content-wrapper,
+    main,
+    .row,
+    .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .loan-product-card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+    }
+    .loan-product-card .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .loan-product-table-container {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .loan-product-table-container table {
+        margin-bottom: 0;
+    }
+    .table-hover tbody tr {
+        cursor: pointer;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="schedule-initial-json">{{ initial_data_json|safe }}</script>
+<script>
+    const tableBody = document.getElementById('schedule-grid-body');
+    const paginationList = document.getElementById('pagination-list');
+    const searchMember = document.getElementById('schedule-search-member');
+    const genericModal = document.getElementById('genericModal');
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimer;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderScheduleTable(schedules) {
+        if (!schedules || schedules.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No schedules found.</td></tr>';
+            return;
+        }
+        let html = '';
+        schedules.forEach(s => {
+            html += `
+                <tr>
+                    <td>${escapeHtml(s.member_name)}</td>
+                    <td>${escapeHtml(s.installment_no)}</td>
+                    <td>${escapeHtml(s.due_date)}</td>
+                    <td>${escapeHtml(s.total_due)}</td>
+                    <td>${escapeHtml(s.is_paid)}</td>
+                    <td>
+                        <a href="/loans/schedules/${s.id}/edit/" class="btn btn-sm btn-warning schedule-edit-link">Edit</a>
+                    </td>
+                </tr>
+            `;
+        });
+        tableBody.innerHTML = html;
+        attachScheduleActionHandlers();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+        let paginationHtml = `
+            <li class="page-item ${current === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+            </li>
+        `;
+        let startPage = Math.max(1, current - 2);
+        let endPage = Math.min(total, current + 2);
+        if (endPage - startPage < 4) {
+            if (startPage > 1) startPage = Math.max(1, endPage - 4);
+            if (endPage < total) endPage = Math.min(total, startPage + 4);
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === current ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `;
+        }
+        paginationHtml += `
+            <li class="page-item ${current === total ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+            </li>
+        `;
+        paginationList.innerHTML = paginationHtml;
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = parseInt(this.dataset.page, 10);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadSchedules(page);
+                }
+            });
+        });
+    }
+
+    function loadSchedules(page = 1) {
+        currentPage = page;
+        const params = new URLSearchParams({
+            member_name: searchMember.value.trim(),
+            page: page,
+            size: 20
+        });
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
+        fetch(`{% url 'loans_schedule_data' %}?${params.toString()}`, { credentials: 'same-origin' })
+            .then(response => response.json())
+            .then(data => {
+                renderScheduleTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(err => {
+                console.error('Schedule load error', err);
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load schedules.</td></tr>';
+                paginationList.innerHTML = '';
+            });
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadSchedules(1), 300);
+    }
+
+    function openScheduleModal(title, url) {
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        modal.show();
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => {
+                console.error('Schedule modal load error', err);
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
+    }
+
+    function attachScheduleActionHandlers() {
+        document.querySelectorAll('.schedule-edit-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                openScheduleModal('Edit Installment Schedule', this.href);
+            });
+        });
+    }
+
+    function handleScheduleModalSubmit(event) {
+        const form = event.target.closest('form');
+        if (!form || !genericModal || !genericModal.contains(form)) return;
+        event.preventDefault();
+
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = bootstrap.Modal.getInstance(genericModal);
+        const submitUrl = form.action;
+        const formData = new FormData(form);
+
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(response => response.text().then(text => ({
+                status: response.status,
+                redirected: response.redirected,
+                url: response.url,
+                text: text
+            })))
+            .then(result => {
+                if (result.redirected || result.url !== submitUrl) {
+                    if (modal) modal.hide();
+                    loadSchedules(currentPage);
+                    return;
+                }
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(result.text, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                const hasForm = !!doc.querySelector('form');
+                if (result.status === 200 && hasForm) {
+                    modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+                } else if (result.status >= 200 && result.status < 300) {
+                    if (modal) modal.hide();
+                    loadSchedules(currentPage);
+                } else {
+                    modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
+                }
+            })
+            .catch(err => {
+                console.error('Schedule modal submit error', err);
+                if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        searchMember.addEventListener('input', handleSearch);
+        if (genericModal) {
+            genericModal.addEventListener('submit', handleScheduleModalSubmit);
+        }
+        try {
+            const initial = JSON.parse(document.getElementById('schedule-initial-json').textContent || 'null');
+            if (initial && Array.isArray(initial.data)) {
+                renderScheduleTable(initial.data);
+                renderPagination(initial.current_page || 1, initial.last_page || 1);
+            } else {
+                loadSchedules(1);
+            }
+        } catch(e) {
+            loadSchedules(1);
+        }
+    });
+</script>
+{% endblock %}
