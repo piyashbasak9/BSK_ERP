@@ -27,10 +27,11 @@
                         <th>Member</th>
                         <th>Amount</th>
                         <th>Method</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="disbursement-grid-body">
-                    <tr><td colspan="4" class="text-center text-muted py-3">Loading disbursements...</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading disbursements...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -42,10 +43,7 @@
 
 <style>
     .app-footer { display: none !important; }
-    .container-fluid.content-wrapper,
-    main,
-    .row,
-    .col-12 {
+    .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
         flex: 1 1 auto !important;
@@ -106,18 +104,21 @@
 
     function renderDisbursementTable(items) {
         if (!items || items.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No disbursements found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No disbursements found.<\/td><\/tr>';
             return;
         }
         let html = '';
         items.forEach(item => {
             html += `
                 <tr>
-                    <td>${escapeHtml(item.disbursement_date)}</td>
-                    <td>${escapeHtml(item.member_name)}</td>
-                    <td>${escapeHtml(item.amount)}</td>
-                    <td>${escapeHtml(item.method)}</td>
-                </tr>
+                    <td>${escapeHtml(item.disbursement_date)}<\/td>
+                    <td>${escapeHtml(item.member_name)}<\/td>
+                    <td>${escapeHtml(item.amount)}<\/td>
+                    <td>${escapeHtml(item.method)}<\/td>
+                    <td>
+                        <a href="/loans/disbursements/${item.id}/edit/" class="btn btn-sm btn-warning">Edit</a>
+                    <\/td>
+                <\/tr>
             `;
         });
         tableBody.innerHTML = html;
@@ -173,7 +174,7 @@
             page: page,
             size: 20
         });
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'loans_disbursement_data' %}?${params.toString()}`, { credentials: 'same-origin' })
             .then(response => response.json())
             .then(data => {
@@ -182,7 +183,7 @@
             })
             .catch(err => {
                 console.error('Disbursement load error', err);
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Unable to load disbursements.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load disbursements.<\/td><\/tr>';
                 paginationList.innerHTML = '';
             });
     }

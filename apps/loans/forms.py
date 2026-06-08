@@ -1,11 +1,12 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import LoanProduct, LoanApplication, LoanDisbursement, LoanInstallmentSchedule
+from datetime import date
 
 
 class LoanProductForm(forms.ModelForm):
     """Form for creating and editing loan products"""
-    
+
     class Meta:
         model = LoanProduct
         fields = [
@@ -19,19 +20,19 @@ class LoanProductForm(forms.ModelForm):
             'processing_fee': forms.NumberInput(attrs={'step': '0.01'}),
             'late_penalty_rate': forms.NumberInput(attrs={'step': '0.01'}),
         }
-    
+
     def clean_code(self):
         code = self.cleaned_data.get('code', '').strip().upper()
         if not code:
             raise ValidationError('Product code is required')
         return code
-    
+
     def clean_min_amount(self):
         amount = self.cleaned_data.get('min_amount')
         if amount is not None and amount < 0:
             raise ValidationError('Minimum amount cannot be negative')
         return amount
-    
+
     def clean_max_amount(self):
         max_amount = self.cleaned_data.get('max_amount')
         min_amount = self.cleaned_data.get('min_amount')
@@ -56,21 +57,34 @@ class LoanApplicationForm(forms.ModelForm):
     
     def clean_applied_amount(self):
         amount = self.cleaned_data.get('applied_amount')
-        if amount is not None and amount <= 0:
+        product = self.cleaned_data.get('product')
+        
+        if amount is None:
+            return amount
+        
+        if amount <= 0:
             raise ValidationError('Applied amount must be greater than 0')
+        
+        # Validate against product limits
+        if product:
+            if amount < product.min_amount:
+                raise ValidationError(f'Applied amount cannot be less than the product minimum amount ({product.min_amount}).')
+            if amount > product.max_amount:
+                raise ValidationError(f'Applied amount cannot exceed the product maximum amount ({product.max_amount}).')
+        
         return amount
     
     def clean_applied_date(self):
         from django.utils import timezone
-        date = self.cleaned_data.get('applied_date')
-        if date and date > timezone.now().date():
+        date_val = self.cleaned_data.get('applied_date')
+        if date_val and date_val > timezone.now().date():
             raise ValidationError('Application date cannot be in the future')
-        return date
+        return date_val
 
     def save(self, commit=True):
         application = super().save(commit=False)
         product = self.cleaned_data.get('product')
-        if product is not None:
+        if product:
             application.interest_rate_applied = product.interest_rate
         if commit:
             application.save()
@@ -90,8 +104,22 @@ class LoanApplicationApprovalForm(forms.ModelForm):
     
     def clean_approved_amount(self):
         amount = self.cleaned_data.get('approved_amount')
-        if amount is not None and amount <= 0:
+        # Get the loan application instance (the object being edited)
+        loan_app = self.instance
+        
+        if amount is None:
+            return amount
+        
+        if amount <= 0:
             raise ValidationError('Approved amount must be greater than 0')
+        
+        # Validate against the product's limits
+        if loan_app and loan_app.product:
+            if amount < loan_app.product.min_amount:
+                raise ValidationError(f'Approved amount cannot be less than the product minimum amount ({loan_app.product.min_amount}).')
+            if amount > loan_app.product.max_amount:
+                raise ValidationError(f'Approved amount cannot exceed the product maximum amount ({loan_app.product.max_amount}).')
+        
         return amount
 
 
@@ -106,16 +134,51 @@ class LoanDisbursementForm(forms.ModelForm):
             'disbursement_date': forms.DateInput(attrs={'type': 'date'}),
         }
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['loan'].queryset = LoanApplication.objects.filter(status='approved')
+    
     def clean_amount(self):
         amount = self.cleaned_data.get('amount')
-        if amount is not None and amount <= 0:
+        loan = self.cleaned_data.get('loan')
+        
+        if amount is None:
+            return amount
+        
+        if amount <= 0:
             raise ValidationError('Disbursement amount must be greater than 0')
+        
+        # Ensure disbursement amount does not exceed the approved amount
+        if loan and loan.approved_amount:
+            if amount > loan.approved_amount:
+                raise ValidationError(f'Disbursement amount cannot exceed the approved amount ({loan.approved_amount}).')
+        
         return amount
+
+
+class LoanDisbursementEditForm(forms.ModelForm):
+    """
+    Form for editing disbursement (only non-critical fields).
+    Amount and loan cannot be changed to maintain data integrity.
+    """
+    class Meta:
+        model = LoanDisbursement
+        fields = ['disbursement_date', 'method', 'reference_no']
+        widgets = {
+            'disbursement_date': forms.DateInput(attrs={'type': 'date'}),
+            'reference_no': forms.TextInput(attrs={'placeholder': 'Cheque no / Transaction ID'}),
+        }
+
+    def clean_disbursement_date(self):
+        date_val = self.cleaned_data.get('disbursement_date')
+        if date_val and date_val > date.today():
+            raise ValidationError("Disbursement date cannot be in the future.")
+        return date_val
 
 
 class LoanInstallmentScheduleForm(forms.ModelForm):
     """Form for loan installment schedules"""
-    
+
     class Meta:
         model = LoanInstallmentSchedule
         fields = [
@@ -130,3 +193,26 @@ class LoanInstallmentScheduleForm(forms.ModelForm):
             'due_date': forms.DateInput(attrs={'type': 'date'}),
             'paid_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
+class LoanPaymentForm(forms.Form):
+    """
+    Form to accept payment for a specific installment.
+    Used in modal for collecting payments.
+    """
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0.01,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'class': 'form-control'}),
+        label="Payment Amount"
+    )
+    payment_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        label="Payment Date", required=False,
+        help_text="Leave blank for today's date"
+    )
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if amount <= 0:
+            raise ValidationError("Amount must be greater than zero.")
+        return amount

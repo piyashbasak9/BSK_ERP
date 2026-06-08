@@ -6,8 +6,8 @@
         <h5 class="mb-0">Loan Installment Schedules</h5>
     </div>
     <div class="search-controls p-3">
-        <div class="d-flex gap-2" style="flex-wrap: nowrap;">
-            <div class="input-group input-group-sm flex-fill" style="min-width: 0;">
+        <div class="d-flex gap-2">
+            <div class="input-group input-group-sm flex-fill">
                 <span class="input-group-text">Member</span>
                 <input id="schedule-search-member" type="search" class="form-control" placeholder="Search by member name">
             </div>
@@ -21,13 +21,15 @@
                         <th>Member</th>
                         <th>Installment #</th>
                         <th>Due Date</th>
+                        <th>Principal</th>
+                        <th>Interest</th>
                         <th>Total Due</th>
                         <th>Paid</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="schedule-grid-body">
-                    <tr><td colspan="6" class="text-center text-muted py-3">Loading schedules...</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">Loading schedules...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -37,12 +39,24 @@
     </div>
 </div>
 
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Make Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="payment-modal-body">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .app-footer { display: none !important; }
-    .container-fluid.content-wrapper,
-    main,
-    .row,
-    .col-12 {
+    .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
         flex: 1 1 auto !important;
@@ -71,9 +85,6 @@
     .loan-product-table-container table {
         margin-bottom: 0;
     }
-    .table-hover tbody tr {
-        cursor: pointer;
-    }
     .pagination .page-item.active .page-link {
         background-color: #0d6efd;
         border-color: #0d6efd;
@@ -88,14 +99,13 @@
     const tableBody = document.getElementById('schedule-grid-body');
     const paginationList = document.getElementById('pagination-list');
     const searchMember = document.getElementById('schedule-search-member');
-    const genericModal = document.getElementById('genericModal');
-
+    const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
     let currentPage = 1;
     let totalPages = 1;
     let searchTimer;
 
     function escapeHtml(str) {
-        if (str === null || str === undefined) return '';
+        if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
@@ -105,27 +115,129 @@
     }
 
     function renderScheduleTable(schedules) {
-        if (!schedules || schedules.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No schedules found.</td></tr>';
+        if (!schedules.length) {
+            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No schedules found.</td></tr>';
             return;
         }
         let html = '';
         schedules.forEach(s => {
+            const isPaid = s.is_paid === 'Yes';
+            const remainingDue = parseFloat(s.total_due) - (parseFloat(s.paid_total) || 0);
             html += `
-                <tr>
+                <tr class="${isPaid ? 'table-success' : (remainingDue > 0 ? 'table-warning' : '')}">
                     <td>${escapeHtml(s.member_name)}</td>
                     <td>${escapeHtml(s.installment_no)}</td>
                     <td>${escapeHtml(s.due_date)}</td>
+                    <td>${escapeHtml(s.principal_amount)}</td>
+                    <td>${escapeHtml(s.interest_amount)}</td>
                     <td>${escapeHtml(s.total_due)}</td>
                     <td>${escapeHtml(s.is_paid)}</td>
                     <td>
-                        <a href="/loans/schedules/${s.id}/edit/" class="btn btn-sm btn-warning schedule-edit-link">Edit</a>
+                        ${!isPaid ? `<button class="btn btn-sm btn-primary pay-schedule" data-id="${s.id}">Pay</button>` : ''}
+                        <a href="/loans/schedules/${s.id}/edit/" class="btn btn-sm btn-warning">Edit</a>
                     </td>
                 </tr>
             `;
         });
         tableBody.innerHTML = html;
-        attachScheduleActionHandlers();
+        attachPayButtons();
+    }
+
+    function attachPayButtons() {
+        document.querySelectorAll('.pay-schedule').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const scheduleId = this.dataset.id;
+                openPaymentModal(scheduleId);
+            });
+        });
+    }
+
+    function openPaymentModal(scheduleId) {
+        const modalBody = document.getElementById('payment-modal-body');
+        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div> Loading...</div>';
+        paymentModal.show();
+
+        fetch(`/loans/schedules/${scheduleId}/pay/`, { credentials: 'same-origin' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.form_html) {
+                    modalBody.innerHTML = `
+                        <div class="mb-3">
+                            <p><strong>Member:</strong> ${escapeHtml(data.member_name)}</p>
+                            <p><strong>Installment #:</strong> ${data.installment_no}</p>
+                            <p><strong>Due Date:</strong> ${data.due_date}</p>
+                            <p><strong>Total Due:</strong> ${data.total_due}</p>
+                            <p><strong>Already Paid:</strong> ${data.paid_total}</p>
+                            <p><strong>Remaining Due:</strong> ${data.remaining_due}</p>
+                            <p><strong>Late Fee:</strong> ${data.late_fee}</p>
+                        </div>
+                        ${data.form_html}
+                    `;
+                    const form = document.getElementById('payment-form');
+                    if (form) {
+                        form.addEventListener('submit', handlePaymentSubmit);
+                    }
+                } else {
+                    modalBody.innerHTML = '<div class="alert alert-danger">Failed to load payment form.</div>';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                modalBody.innerHTML = '<div class="alert alert-danger">Error loading payment form.</div>';
+            });
+    }
+
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function handlePaymentSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitUrl = form.action;
+        const modalBody = document.getElementById('payment-modal-body');
+        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div> Processing...</div>';
+
+        const csrftoken = getCookie('csrftoken');
+
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrftoken  // ✅ Add CSRF token here
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                paymentModal.hide();
+                loadSchedules(currentPage);
+                alert(`Success: ${data.message}`);
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">${data.error}</div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                `;
+            }
+        })
+        .catch(err => {
+            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred. Please try again.</div>';
+        });
     }
 
     function renderPagination(current, total) {
@@ -135,59 +247,50 @@
             paginationList.innerHTML = '';
             return;
         }
-        let paginationHtml = `
+        let html = `
             <li class="page-item ${current === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+                <a class="page-link" href="#" data-page="${current-1}">Previous</a>
             </li>
         `;
-        let startPage = Math.max(1, current - 2);
-        let endPage = Math.min(total, current + 2);
-        if (endPage - startPage < 4) {
-            if (startPage > 1) startPage = Math.max(1, endPage - 4);
-            if (endPage < total) endPage = Math.min(total, startPage + 4);
+        let start = Math.max(1, current-2);
+        let end = Math.min(total, current+2);
+        if (end-start < 4) {
+            if (start > 1) start = Math.max(1, end-4);
+            if (end < total) end = Math.min(total, start+4);
         }
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `
-                <li class="page-item ${i === current ? 'active' : ''}">
-                    <a class="page-link" href="#" data-page="${i}">${i}</a>
-                </li>
-            `;
+        for (let i = start; i <= end; i++) {
+            html += `<li class="page-item ${i===current?'active':''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
         }
-        paginationHtml += `
-            <li class="page-item ${current === total ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current + 1}">Next</a>
-            </li>
-        `;
-        paginationList.innerHTML = paginationHtml;
+        html += `<li class="page-item ${current===total?'disabled':''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
+        paginationList.innerHTML = html;
         paginationList.querySelectorAll('a.page-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                const page = parseInt(this.dataset.page, 10);
-                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                let page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page>=1 && page<=totalPages && page !== currentPage) {
                     loadSchedules(page);
                 }
             });
         });
     }
 
-    function loadSchedules(page = 1) {
+    function loadSchedules(page=1) {
         currentPage = page;
         const params = new URLSearchParams({
             member_name: searchMember.value.trim(),
             page: page,
             size: 20
         });
-        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
-        fetch(`{% url 'loans_schedule_data' %}?${params.toString()}`, { credentials: 'same-origin' })
-            .then(response => response.json())
+        tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Loading...</td></tr>';
+        fetch(`{% url 'loans_schedule_data' %}?${params.toString()}`, {credentials: 'same-origin'})
+            .then(res => res.json())
             .then(data => {
                 renderScheduleTable(data.data || []);
                 renderPagination(data.current_page || 1, data.last_page || 1);
             })
             .catch(err => {
-                console.error('Schedule load error', err);
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load schedules.</td></tr>';
-                paginationList.innerHTML = '';
+                console.error(err);
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load schedules.</td></tr>';
             });
     }
 
@@ -196,104 +299,9 @@
         searchTimer = setTimeout(() => loadSchedules(1), 300);
     }
 
-    function openScheduleModal(title, url) {
-        if (!genericModal) {
-            window.location.href = url;
-            return;
-        }
-        const modalTitle = genericModal.querySelector('.modal-title');
-        const modalBody = genericModal.querySelector('.modal-body');
-        const modal = new bootstrap.Modal(genericModal);
-        modalTitle.textContent = title;
-        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        modal.show();
-
-        fetch(url, { credentials: 'same-origin' })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
-                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
-            })
-            .catch(err => {
-                console.error('Schedule modal load error', err);
-                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
-            });
-    }
-
-    function attachScheduleActionHandlers() {
-        document.querySelectorAll('.schedule-edit-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                openScheduleModal('Edit Installment Schedule', this.href);
-            });
-        });
-    }
-
-    function handleScheduleModalSubmit(event) {
-        const form = event.target.closest('form');
-        if (!form || !genericModal || !genericModal.contains(form)) return;
-        event.preventDefault();
-
-        const modalBody = genericModal.querySelector('.modal-body');
-        const modal = bootstrap.Modal.getInstance(genericModal);
-        const submitUrl = form.action;
-        const formData = new FormData(form);
-
-        fetch(submitUrl, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-            .then(response => response.text().then(text => ({
-                status: response.status,
-                redirected: response.redirected,
-                url: response.url,
-                text: text
-            })))
-            .then(result => {
-                if (result.redirected || result.url !== submitUrl) {
-                    if (modal) modal.hide();
-                    loadSchedules(currentPage);
-                    return;
-                }
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(result.text, 'text/html');
-                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
-                const hasForm = !!doc.querySelector('form');
-                if (result.status === 200 && hasForm) {
-                    modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
-                } else if (result.status >= 200 && result.status < 300) {
-                    if (modal) modal.hide();
-                    loadSchedules(currentPage);
-                } else {
-                    modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
-                }
-            })
-            .catch(err => {
-                console.error('Schedule modal submit error', err);
-                if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes. Please try again.</div>';
-            });
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         searchMember.addEventListener('input', handleSearch);
-        if (genericModal) {
-            genericModal.addEventListener('submit', handleScheduleModalSubmit);
-        }
-        try {
-            const initial = JSON.parse(document.getElementById('schedule-initial-json').textContent || 'null');
-            if (initial && Array.isArray(initial.data)) {
-                renderScheduleTable(initial.data);
-                renderPagination(initial.current_page || 1, initial.last_page || 1);
-            } else {
-                loadSchedules(1);
-            }
-        } catch(e) {
-            loadSchedules(1);
-        }
+        loadSchedules(1);
     });
 </script>
 {% endblock %}
