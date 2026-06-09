@@ -1,125 +1,197 @@
 {% extends 'base.html' %}
+
 {% block content %}
-
-{% if branch_missing %}
-<div class="alert alert-warning">Your account does not have a branch assigned. Assign a branch to see branch-specific accounts.</div>
-{% endif %}
-
-<div class="master-detail-container">
-    <!-- Left Column: Savings Accounts List -->
-    <div class="master-column">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Savings Accounts</h5>
-                <a class="btn btn-success btn-sm" href="{% url 'savings_account_add' %}">+ Open Account</a>
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Savings Accounts</h5>
+        <a class="btn btn-success btn-sm" href="{% url 'savings_account_add' %}">+ Add Account</a>
+    </div>
+    <div class="search-controls p-3">
+        <div class="d-flex gap-2">
+            <div class="input-group input-group-sm flex-fill">
+                <span class="input-group-text">Account No</span>
+                <input id="account-search-no" type="search" class="form-control" placeholder="Search by account number">
             </div>
-            <div class="search-controls">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text">By Account No</span>
-                    <input id="account-search-no" type="search" class="form-control" placeholder="Account Number">
-                </div>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text">By Member</span>
-                    <input id="account-search-member" type="search" class="form-control" placeholder="Member Name">
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="grid-container" id="account-grid">
-                    {% if initial_accounts %}
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Account No</th>
-                                <th>Member</th>
-                                <th>Product</th>
-                                <th>Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for a in initial_accounts %}
-                                <tr style="cursor: pointer;">
-                                    <td>{{ a.account_no }}</td>
-                                    <td>{{ a.member_name }}</td>
-                                    <td>{{ a.product_name }}</td>
-                                    <td>₹{{ a.current_balance }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% endif %}
-                </div>
+            <div class="input-group input-group-sm flex-fill">
+                <span class="input-group-text">Member</span>
+                <input id="account-search-member" type="search" class="form-control" placeholder="Search by member name">
             </div>
         </div>
     </div>
-    
-    <!-- Right Column: Account Details -->
-    <div class="detail-column">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Account Details</h5>
-                <div class="btn-group" id="detail-actions" style="display: none;">
-                    <a id="edit-btn" class="btn btn-primary btn-sm" href="#">Edit</a>
-                    <a id="delete-btn" class="btn btn-danger btn-sm" href="#">Delete</a>
-                </div>
-            </div>
-            <div class="card-body" id="detail-content">
-                <p class="text-muted">Select an account to view details</p>
-            </div>
+    <div class="card-body d-flex flex-column" style="min-height: 400px;">
+        <div class="table-responsive flex-fill">
+            <table class="table table-sm table-hover" id="account-grid-table">
+                <thead>
+                    <tr>
+                        <th>Account No</th>
+                        <th>Member</th>
+                        <th>Product</th>
+                        <th>Balance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="account-grid-body">
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading accounts...</td></tr>
+                </tbody>
+            </table>
         </div>
+        <nav class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
     </div>
 </div>
+<style> /* same as product_list */ </style>
+{% endblock %}
 
+{% block extra_js %}
+<script type="application/json" id="account-initial-json">{{ initial_data_json|safe }}</script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize grid and detail view
-        const gridContainer = document.getElementById('account-grid');
-        if (gridContainer && typeof Tabulator !== 'undefined') {
-            const columns = {{ columns_json|safe }};
-            const initialData = {{ initial_data_json|safe }};
-            
-            const table = new Tabulator(gridContainer, {
-                data: initialData.data,
-                columns: columns,
-                layout: 'fitColumns',
-                pagination: 'remote',
-                paginationSize: 20,
-            });
-            
-            table.on('rowClick', function(e, row) {
-                const data = row.getData();
-                fetch(`/savings/accounts/${data.id}/json/`)
-                    .then(r => r.json())
-                    .then(account => {
-                        let transactionHTML = '<h6>Recent Transactions</h6><table class="table table-sm">';
-                        account.transactions.forEach(t => {
-                            transactionHTML += `<tr><td>${t.date}</td><td>${t.type}</td><td>₹${t.amount}</td><td>₹${t.balance}</td></tr>`;
-                        });
-                        transactionHTML += '</table>';
-                        
-                        document.getElementById('detail-content').innerHTML = `
-                            <dl class="row">
-                                <dt class="col-sm-4">Account No</dt>
-                                <dd class="col-sm-8">${account.account_no}</dd>
-                                <dt class="col-sm-4">Member</dt>
-                                <dd class="col-sm-8">${account.member}</dd>
-                                <dt class="col-sm-4">Product</dt>
-                                <dd class="col-sm-8">${account.product}</dd>
-                                <dt class="col-sm-4">Opening Date</dt>
-                                <dd class="col-sm-8">${account.opening_date}</dd>
-                                <dt class="col-sm-4">Current Balance</dt>
-                                <dd class="col-sm-8"><strong>₹${account.current_balance}</strong></dd>
-                                <dt class="col-sm-4">Status</dt>
-                                <dd class="col-sm-8">${account.is_active}</dd>
-                            </dl>
-                            ${transactionHTML}
-                        `;
-                        document.getElementById('edit-btn').href = `/savings/accounts/${account.id}/edit/`;
-                        document.getElementById('delete-btn').href = `/savings/accounts/${account.id}/delete/`;
-                        document.getElementById('detail-actions').style.display = 'block';
-                    });
-            });
+    const tableBody = document.getElementById('account-grid-body');
+    const paginationList = document.getElementById('pagination-list');
+    const searchNo = document.getElementById('account-search-no');
+    const searchMember = document.getElementById('account-search-member');
+    const genericModal = document.getElementById('genericModal');
+    let currentPage = 1, totalPages = 1, searchTimer;
+
+    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+    function renderTable(accounts) {
+        if (!accounts || accounts.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No accounts found.</td></tr>';
+            return;
         }
+        let html = '';
+        accounts.forEach(a => {
+            html += `<tr>
+                <td>${escapeHtml(a.account_no)}</td>
+                <td>${escapeHtml(a.member_name)}</td>
+                <td>${escapeHtml(a.product_name)}</td>
+                <td>${escapeHtml(a.current_balance)}</td>
+                <td>
+                    <a href="/savings/accounts/${a.id}/edit/" class="btn btn-sm btn-warning me-1 account-edit-link">Edit</a>
+                    <a href="/savings/accounts/${a.id}/delete/" class="btn btn-sm btn-danger account-delete-link">Delete</a>
+                    <a href="/savings/accounts/${a.id}/statement/" class="btn btn-sm btn-info" target="_blank">Statement</a>
+                </td>
+            </tr>`;
+        });
+        tableBody.innerHTML = html;
+        attachActionHandlers();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current; totalPages = total;
+        if (total <= 1) { paginationList.innerHTML = ''; return; }
+        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current-1}">Previous</a></li>`;
+        let start = Math.max(1, current-2);
+        let end = Math.min(total, current+2);
+        if (end-start < 4) {
+            if (start > 1) start = Math.max(1, end-4);
+            if (end < total) end = Math.min(total, start+4);
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<li class="page-item ${i===current?'active':''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+        }
+        html += `<li class="page-item ${current===total?'disabled':''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
+        paginationList.innerHTML = html;
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                let page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page>=1 && page<=totalPages && page !== currentPage) loadAccounts(page);
+            });
+        });
+    }
+
+    function loadAccounts(page = 1) {
+        const params = new URLSearchParams({ account_no: searchNo.value.trim(), member_name: searchMember.value.trim(), page: page, size: 20 });
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>';
+        fetch(`{% url 'savings_account_data' %}?${params.toString()}`, {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => {
+                renderTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(err => { console.error(err); tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load accounts.</td></tr>'; });
+    }
+
+    function handleSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadAccounts(1), 300); }
+
+    function openModal(title, url) {
+        if (!genericModal) { window.location.href = url; return; }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+        modal.show();
+        fetch(url, {credentials: 'same-origin'})
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => { modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>'; });
+    }
+
+    function attachActionHandlers() {
+        document.querySelectorAll('.account-edit-link, .account-delete-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                openModal(this.classList.contains('account-delete-link') ? 'Delete Account' : 'Edit Account', this.href);
+            });
+        });
+    }
+
+    function handleModalSubmit(event) {
+        const form = event.target.closest('form');
+        if (!form || !genericModal || !genericModal.contains(form)) return;
+        event.preventDefault();
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = bootstrap.Modal.getInstance(genericModal);
+        const submitUrl = form.action;
+        const formData = new FormData(form);
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text().then(text => ({ status: response.status, redirected: response.redirected, text: text })))
+        .then(result => {
+            if (result.redirected) {
+                if (modal) modal.hide();
+                loadAccounts(currentPage);
+                return;
+            }
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(result.text, 'text/html');
+            const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+            const hasForm = !!doc.querySelector('form');
+            if (result.status === 200 && hasForm) {
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+            } else if (result.status >= 200 && result.status < 300) {
+                if (modal) modal.hide();
+                loadAccounts(currentPage);
+            } else {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes.</div>';
+            }
+        })
+        .catch(err => { modalBody.innerHTML = '<div class="alert alert-danger">An error occurred.</div>'; });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        searchNo.addEventListener('input', handleSearch);
+        searchMember.addEventListener('input', handleSearch);
+        if (genericModal) genericModal.addEventListener('submit', handleModalSubmit);
+        try {
+            const initial = JSON.parse(document.getElementById('account-initial-json').textContent || 'null');
+            if (initial && Array.isArray(initial.data)) {
+                renderTable(initial.data);
+                renderPagination(initial.current_page || 1, initial.last_page || 1);
+            } else { loadAccounts(1); }
+        } catch(e) { loadAccounts(1); }
     });
 </script>
-
 {% endblock %}

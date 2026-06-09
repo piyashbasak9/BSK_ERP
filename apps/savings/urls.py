@@ -2,9 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Dashboard
-    path('', views.SavingsDashboardView.as_view(), name='savings_dashboard'),
-
     # Savings Products
     path('products/', views.SavingsProductListView.as_view(), name='savings_product_list'),
     path('products/data/', views.SavingsProductGridDataView.as_view(), name='savings_product_data'),

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Account Statement - {{ account.account_no }}</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; }
+        .account-info { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; }
+        .account-info table { width: 100%; }
+        .account-info td { padding: 4px; border: none; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Savings Account Statement</h1>
+        <p>Generated on {{ today|date:"Y-m-d" }}</p>
+    </div>
+    <div class="account-info">
+        <table>
+            <tr><td style="border: none;"><strong>Account No:</strong> {{ account.account_no }}</td><td style="border: none;"><strong>Member:</strong> {{ account.member.name }}</td></tr>
+            <tr><td style="border: none;"><strong>Product:</strong> {{ account.product.name }}</td><td style="border: none;"><strong>Opening Date:</strong> {{ account.opening_date|date:"Y-m-d" }}</td></tr>
+            <tr><td style="border: none;" colspan="2"><strong>Current Balance:</strong> ৳ {{ account.current_balance|floatformat:2 }}</td></tr>
+        </table>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th></tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.date|date:"Y-m-d" }}</td>
+                <td>{{ t.get_transaction_type_display }}</td>
+                <td>{{ t.description|default:"-" }}</td>
+                <td style="text-align:right;">৳ {{ t.amount|floatformat:2 }}</td>
+                <td style="text-align:right;">৳ {{ t.balance_after|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">No transactions found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="footer">
+        This is a computer-generated statement. No signature required.
+    </div>
+</body>
+</html>

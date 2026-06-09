@@ -52,9 +52,27 @@
                                 Savings
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="/savings/products/">Savings Products</a></li>
-                                <li><a class="dropdown-item" href="/savings/accounts/">Savings Accounts</a></li>
-                                <li><a class="dropdown-item" href="/savings/transactions/">Savings Transactions</a></li>
+                                <li class="dropend">
+                                    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Savings Products</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/savings/products/">Product List</a></li>
+                                        <li><a class="dropdown-item" href="/savings/products/add/">Add Product</a></li>
+                                    </ul>
+                                </li>
+                                <li class="dropend">
+                                    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Savings Accounts</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/savings/accounts/">Account List</a></li>
+                                        <li><a class="dropdown-item" href="/savings/accounts/add/">Open Account</a></li>
+                                    </ul>
+                                </li>
+                                <li class="dropend">
+                                    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Transactions</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/savings/transactions/">Transaction List</a></li>
+                                        <li><a class="dropdown-item" href="/savings/transactions/add/">Add Transaction</a></li>
+                                    </ul>
+                                </li>
                             </ul>
                         </li>
                     {% endif %}
@@ -75,8 +93,8 @@
                                 <li class="dropend">
                                     <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Loan Applications</a>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="/loans/applications/">Loan Application List</a></li>
-                                        <li><a class="dropdown-item" href="/loans/applications/add/">Add Loan Application</a></li>
+                                        <li><a class="dropdown-item" href="/loans/applications/">Application List</a></li>
+                                        <li><a class="dropdown-item" href="/loans/applications/add/">Add Application</a></li>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item" href="/loans/disbursements/">Loan Disbursements</a></li>

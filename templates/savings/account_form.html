@@ -4,19 +4,15 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-12 col-lg-8">
-        <div class="card mb-4">
+        <div class="card">
             <div class="card-header">
-                <h2 class="mb-0">{% if object %}Edit Savings Account{% else %}Open Savings Account{% endif %}</h2>
+                <h2>{% if object %}Edit Savings Account{% else %}Open Savings Account{% endif %}</h2>
             </div>
             <div class="card-body">
-                {% if object %}
-                <form method="post" action="{% url 'savings_account_edit' pk=object.pk %}">
-                {% else %}
-                <form method="post" action="{% url 'savings_account_add' %}">
-                {% endif %}
+                <form method="post" action="{% if object %}{% url 'savings_account_edit' pk=object.pk %}{% else %}{% url 'savings_account_add' %}{% endif %}">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <div class="mt-3">
                         <button type="submit" class="btn btn-success">Save</button>
                         <a href="{% url 'savings_account_list' %}" class="btn btn-secondary">Back</a>
                     </div>
@@ -25,4 +21,20 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.2.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var memberSelect = document.querySelector('select[name="member"]');
+        var productSelect = document.querySelector('select[name="product"]');
+        if (window.jQuery && window.jQuery.fn.select2) {
+            if (memberSelect) window.jQuery(memberSelect).select2({ width: '100%', theme: 'bootstrap-5', placeholder: 'Select a member' });
+            if (productSelect) window.jQuery(productSelect).select2({ width: '100%', theme: 'bootstrap-5', placeholder: 'Select a product' });
+        }
+    });
+</script>
 {% endblock %}

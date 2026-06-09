@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h2>Confirm Delete</h2>
+            </div>
+            <div class="card-body">
+                <p>Are you sure you want to delete the savings product <strong>{{ object.name }}</strong>?</p>
+                <form method="post" action="{% url 'savings_product_delete' pk=object.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <a href="{% url 'savings_product_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,19 +4,15 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-12 col-lg-8">
-        <div class="card mb-4">
+        <div class="card">
             <div class="card-header">
-                <h2 class="mb-0">{% if object %}Edit Savings Product{% else %}Add Savings Product{% endif %}</h2>
+                <h2>{% if object %}Edit Savings Product{% else %}Add Savings Product{% endif %}</h2>
             </div>
             <div class="card-body">
-                {% if object %}
-                <form method="post" action="{% url 'savings_product_edit' pk=object.pk %}">
-                {% else %}
-                <form method="post" action="{% url 'savings_product_add' %}">
-                {% endif %}
+                <form method="post" action="{% if object %}{% url 'savings_product_edit' pk=object.pk %}{% else %}{% url 'savings_product_add' %}{% endif %}">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <div class="mt-3">
                         <button type="submit" class="btn btn-success">Save</button>
                         <a href="{% url 'savings_product_list' %}" class="btn btn-secondary">Back</a>
                     </div>
