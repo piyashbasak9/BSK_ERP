@@ -31,7 +31,7 @@
                     </tr>
                 </thead>
                 <tbody id="account-grid-body">
-                    <tr><td colspan="5" class="text-center text-muted py-3">Loading accounts...</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading accounts...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -40,7 +40,21 @@
         </nav>
     </div>
 </div>
-<style> /* same as product_list */ </style>
+
+<style>
+    .app-footer { display: none !important; }
+    .container-fluid.content-wrapper, main, .row, .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
+    .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    .table-responsive { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -53,78 +67,118 @@
     const genericModal = document.getElementById('genericModal');
     let currentPage = 1, totalPages = 1, searchTimer;
 
-    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
 
     function renderTable(accounts) {
         if (!accounts || accounts.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No accounts found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No accounts found.<\/td><\/tr>';
             return;
         }
         let html = '';
         accounts.forEach(a => {
             html += `<tr>
-                <td>${escapeHtml(a.account_no)}</td>
-                <td>${escapeHtml(a.member_name)}</td>
-                <td>${escapeHtml(a.product_name)}</td>
-                <td>${escapeHtml(a.current_balance)}</td>
+                <td>${escapeHtml(a.account_no)}<\/td>
+                <td>${escapeHtml(a.member_name)}<\/td>
+                <td>${escapeHtml(a.product_name)}<\/td>
+                <td>${escapeHtml(a.current_balance)}<\/td>
                 <td>
                     <a href="/savings/accounts/${a.id}/edit/" class="btn btn-sm btn-warning me-1 account-edit-link">Edit</a>
                     <a href="/savings/accounts/${a.id}/delete/" class="btn btn-sm btn-danger account-delete-link">Delete</a>
                     <a href="/savings/accounts/${a.id}/statement/" class="btn btn-sm btn-info" target="_blank">Statement</a>
-                </td>
+                 <\/td>
             </tr>`;
         });
         tableBody.innerHTML = html;
         attachActionHandlers();
     }
 
+    // Pagination rendering – identical to loan product page
     function renderPagination(current, total) {
-        currentPage = current; totalPages = total;
-        if (total <= 1) { paginationList.innerHTML = ''; return; }
-        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current-1}">Previous</a></li>`;
-        let start = Math.max(1, current-2);
-        let end = Math.min(total, current+2);
-        if (end-start < 4) {
-            if (start > 1) start = Math.max(1, end-4);
-            if (end < total) end = Math.min(total, start+4);
+        currentPage = current;
+        totalPages = total;
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+        let html = '';
+        // Previous button
+        html += `<li class="page-item ${current === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+                </li>`;
+        let start = Math.max(1, current - 2);
+        let end = Math.min(total, current + 2);
+        if (end - start < 4) {
+            if (start > 1) start = Math.max(1, end - 4);
+            if (end < total) end = Math.min(total, start + 4);
         }
         for (let i = start; i <= end; i++) {
-            html += `<li class="page-item ${i===current?'active':''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+            html += `<li class="page-item ${i === current ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
         }
-        html += `<li class="page-item ${current===total?'disabled':''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
+        // Next button
+        html += `<li class="page-item ${current === total ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+                </li>`;
         paginationList.innerHTML = html;
+        // Attach click handlers
         paginationList.querySelectorAll('a.page-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                let page = parseInt(this.dataset.page);
-                if (!isNaN(page) && page>=1 && page<=totalPages && page !== currentPage) loadAccounts(page);
+                const page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadAccounts(page);
+                }
             });
         });
     }
 
     function loadAccounts(page = 1) {
-        const params = new URLSearchParams({ account_no: searchNo.value.trim(), member_name: searchMember.value.trim(), page: page, size: 20 });
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>';
-        fetch(`{% url 'savings_account_data' %}?${params.toString()}`, {credentials: 'same-origin'})
+        const params = new URLSearchParams({
+            account_no: searchNo.value.trim(),
+            member_name: searchMember.value.trim(),
+            page: page,
+            size: 20
+        });
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
+        fetch(`{% url 'savings_account_data' %}?${params.toString()}`, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
                 renderTable(data.data || []);
                 renderPagination(data.current_page || 1, data.last_page || 1);
             })
-            .catch(err => { console.error(err); tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load accounts.</td></tr>'; });
+            .catch(err => {
+                console.error(err);
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load accounts.<\/td><\/tr>';
+                paginationList.innerHTML = '';
+            });
     }
 
-    function handleSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadAccounts(1), 300); }
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadAccounts(1), 300);
+    }
 
     function openModal(title, url) {
-        if (!genericModal) { window.location.href = url; return; }
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
         const modalTitle = genericModal.querySelector('.modal-title');
         const modalBody = genericModal.querySelector('.modal-body');
         const modal = new bootstrap.Modal(genericModal);
         modalTitle.textContent = title;
         modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
         modal.show();
-        fetch(url, {credentials: 'same-origin'})
+        fetch(url, { credentials: 'same-origin' })
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
@@ -132,14 +186,17 @@
                 const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
                 modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
             })
-            .catch(err => { modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>'; });
+            .catch(err => {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
     }
 
     function attachActionHandlers() {
         document.querySelectorAll('.account-edit-link, .account-delete-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                openModal(this.classList.contains('account-delete-link') ? 'Delete Account' : 'Edit Account', this.href);
+                const title = this.classList.contains('account-delete-link') ? 'Delete Account' : 'Edit Account';
+                openModal(title, this.href);
             });
         });
     }
@@ -178,7 +235,9 @@
                 modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes.</div>';
             }
         })
-        .catch(err => { modalBody.innerHTML = '<div class="alert alert-danger">An error occurred.</div>'; });
+        .catch(err => {
+            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred.</div>';
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -190,8 +249,12 @@
             if (initial && Array.isArray(initial.data)) {
                 renderTable(initial.data);
                 renderPagination(initial.current_page || 1, initial.last_page || 1);
-            } else { loadAccounts(1); }
-        } catch(e) { loadAccounts(1); }
+            } else {
+                loadAccounts(1);
+            }
+        } catch(e) {
+            loadAccounts(1);
+        }
     });
 </script>
 {% endblock %}

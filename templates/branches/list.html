@@ -38,10 +38,10 @@
                         <tbody>
                             {% for b in initial_branches %}
                                 <tr style="cursor: pointer;">
-                                    <td>{{ b.code }}</td>
-                                    <td>{{ b.name }}</td>
-                                    <td>{{ b.phone }}</td>
-                                    <td>{{ b.is_active }}</td>
+                                    <td>{{ b.code }}<\/td>
+                                    <td>{{ b.name }}<\/td>
+                                    <td>{{ b.phone }}<\/td>
+                                    <td>{{ b.is_active }}<\/td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -90,7 +90,41 @@
 </template>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Remove the line that hides the footer */
+    /* .app-footer { display: none !important; } */
+    
+    /* Ensure master-detail container uses flex and allows scrolling without hiding footer */
+    .master-detail-container {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 0px;
+        min-height: 0;
+        overflow: auto;
+    }
+    .master-column, .detail-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .master-column .card, .detail-column .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .master-column .card-body, .detail-column .card-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+    .table-hover tbody tr {
+        cursor: pointer;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
 </style>
 
 <script type="application/json" id="branch-columns-json">{{ columns_json|safe }}</script>
@@ -218,9 +252,9 @@
                 html += '<tr data-id="' + (r.id || r.code || '') + '" style="cursor: pointer;">';
                 cols.forEach(c => {
                     const v = r[c.field] !== undefined ? r[c.field] : '';
-                    html += '<td>' + (v === null ? '' : String(v)) + '</td>';
+                    html += '<td>' + (v === null ? '' : String(v)) + '<\/td>';
                 });
-                html += '</tr>';
+                html += '<\/tr>';
             });
             html += '</tbody></table>';
             this.container.innerHTML = html;

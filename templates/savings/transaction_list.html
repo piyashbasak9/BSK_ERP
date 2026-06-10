@@ -32,7 +32,7 @@
                     </tr>
                 </thead>
                 <tbody id="trans-grid-body">
-                    <tr><td colspan="6" class="text-center text-muted py-3">Loading transactions...</td></tr>
+                    <td><td colspan="6" class="text-center text-muted py-3">Loading transactions...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -41,7 +41,21 @@
         </nav>
     </div>
 </div>
-<style> /* same as product_list */ </style>
+
+<style>
+    .app-footer { display: none !important; }
+    .container-fluid.content-wrapper, main, .row, .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
+    .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    .table-responsive { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -68,28 +82,97 @@
         return cookieValue;
     }
 
-    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
 
     function renderTable(transactions) {
         if (!transactions || transactions.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No transactions found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No transactions found.<\/td><\/tr>';
             return;
         }
         let html = '';
         transactions.forEach(t => {
             html += `<tr>
-                <td>${escapeHtml(t.date)}</td>
-                <td>${escapeHtml(t.account_no)}</td>
-                <td>${escapeHtml(t.member_name)}</td>
-                <td>${escapeHtml(t.transaction_type)}</td>
-                <td>${escapeHtml(t.amount)}</td>
+                <td>${escapeHtml(t.date)}<\/td>
+                <td>${escapeHtml(t.account_no)}<\/td>
+                <td>${escapeHtml(t.member_name)}<\/td>
+                <td>${escapeHtml(t.transaction_type)}<\/td>
+                <td>${escapeHtml(t.amount)}<\/td>
                 <td>
                     <button class="btn btn-sm btn-danger reverse-trans" data-id="${t.id}">Reverse</button>
-                </td>
+                 <\/td>
             </tr>`;
         });
         tableBody.innerHTML = html;
         attachReverseButtons();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+        let html = '';
+        // Previous button
+        html += `<li class="page-item ${current === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+                </li>`;
+        let start = Math.max(1, current - 2);
+        let end = Math.min(total, current + 2);
+        if (end - start < 4) {
+            if (start > 1) start = Math.max(1, end - 4);
+            if (end < total) end = Math.min(total, start + 4);
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<li class="page-item ${i === current ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
+        }
+        // Next button
+        html += `<li class="page-item ${current === total ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+                </li>`;
+        paginationList.innerHTML = html;
+        // Attach click handlers
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadTransactions(page);
+                }
+            });
+        });
+    }
+
+    function loadTransactions(page = 1) {
+        const params = new URLSearchParams({
+            account_no: searchAccount.value.trim(),
+            member_name: searchMember.value.trim(),
+            page: page,
+            size: 20
+        });
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
+        fetch(`{% url 'savings_transaction_data' %}?${params.toString()}`, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                renderTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(err => {
+                console.error(err);
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load transactions.<\/td><\/tr>';
+                paginationList.innerHTML = '';
+            });
     }
 
     function attachReverseButtons() {
@@ -99,7 +182,10 @@
                     const id = this.dataset.id;
                     fetch(`/savings/transactions/${id}/reverse/`, {
                         method: 'POST',
-                        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+                        headers: { 
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         credentials: 'same-origin'
                     })
                     .then(r => r.json())
@@ -117,43 +203,10 @@
         });
     }
 
-    function renderPagination(current, total) {
-        currentPage = current; totalPages = total;
-        if (total <= 1) { paginationList.innerHTML = ''; return; }
-        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current-1}">Previous</a></li>`;
-        let start = Math.max(1, current-2);
-        let end = Math.min(total, current+2);
-        if (end-start < 4) {
-            if (start > 1) start = Math.max(1, end-4);
-            if (end < total) end = Math.min(total, start+4);
-        }
-        for (let i = start; i <= end; i++) {
-            html += `<li class="page-item ${i===current?'active':''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
-        }
-        html += `<li class="page-item ${current===total?'disabled':''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
-        paginationList.innerHTML = html;
-        paginationList.querySelectorAll('a.page-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                let page = parseInt(this.dataset.page);
-                if (!isNaN(page) && page>=1 && page<=totalPages && page !== currentPage) loadTransactions(page);
-            });
-        });
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadTransactions(1), 300);
     }
-
-    function loadTransactions(page = 1) {
-        const params = new URLSearchParams({ account_no: searchAccount.value.trim(), member_name: searchMember.value.trim(), page: page, size: 20 });
-        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
-        fetch(`{% url 'savings_transaction_data' %}?${params.toString()}`, {credentials: 'same-origin'})
-            .then(r => r.json())
-            .then(data => {
-                renderTable(data.data || []);
-                renderPagination(data.current_page || 1, data.last_page || 1);
-            })
-            .catch(err => { console.error(err); tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load transactions.</td></tr>'; });
-    }
-
-    function handleSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadTransactions(1), 300); }
 
     document.addEventListener('DOMContentLoaded', function() {
         searchAccount.addEventListener('input', handleSearch);
@@ -163,8 +216,12 @@
             if (initial && Array.isArray(initial.data)) {
                 renderTable(initial.data);
                 renderPagination(initial.current_page || 1, initial.last_page || 1);
-            } else { loadTransactions(1); }
-        } catch(e) { loadTransactions(1); }
+            } else {
+                loadTransactions(1);
+            }
+        } catch(e) {
+            loadTransactions(1);
+        }
     });
 </script>
 {% endblock %}

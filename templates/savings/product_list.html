@@ -66,7 +66,9 @@
     const searchCode = document.getElementById('product-search-code');
     const searchName = document.getElementById('product-search-name');
     const genericModal = document.getElementById('genericModal');
-    let currentPage = 1, totalPages = 1, searchTimer;
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimer;
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -101,6 +103,7 @@
         attachActionHandlers();
     }
 
+    // Pagination rendering – identical to loan product page
     function renderPagination(current, total) {
         currentPage = current;
         totalPages = total;
@@ -108,23 +111,35 @@
             paginationList.innerHTML = '';
             return;
         }
-        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current-1}">Previous</a></li>`;
-        let start = Math.max(1, current-2);
-        let end = Math.min(total, current+2);
+        let html = '';
+        // Previous button
+        html += `<li class="page-item ${current === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
+                </li>`;
+        let start = Math.max(1, current - 2);
+        let end = Math.min(total, current + 2);
         if (end - start < 4) {
-            if (start > 1) start = Math.max(1, end-4);
-            if (end < total) end = Math.min(total, start+4);
+            if (start > 1) start = Math.max(1, end - 4);
+            if (end < total) end = Math.min(total, start + 4);
         }
         for (let i = start; i <= end; i++) {
-            html += `<li class="page-item ${i === current ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+            html += `<li class="page-item ${i === current ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
         }
-        html += `<li class="page-item ${current === total ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
+        // Next button
+        html += `<li class="page-item ${current === total ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current + 1}">Next</a>
+                </li>`;
         paginationList.innerHTML = html;
+        // Add click handlers
         paginationList.querySelectorAll('a.page-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                let page = parseInt(this.dataset.page);
-                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) loadProducts(page);
+                const page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadProducts(page);
+                }
             });
         });
     }
@@ -137,8 +152,8 @@
             size: 20
         });
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
-        fetch(`{% url 'savings_product_data' %}?${params.toString()}`, {credentials: 'same-origin'})
-            .then(r => r.json())
+        fetch(`{% url 'savings_product_data' %}?${params.toString()}`, { credentials: 'same-origin' })
+            .then(response => response.json())
             .then(data => {
                 renderTable(data.data || []);
                 renderPagination(data.current_page || 1, data.last_page || 1);
@@ -146,6 +161,7 @@
             .catch(err => {
                 console.error(err);
                 tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load products.</td></tr>';
+                paginationList.innerHTML = '';
             });
     }
 
@@ -165,7 +181,7 @@
         modalTitle.textContent = title;
         modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
         modal.show();
-        fetch(url, {credentials: 'same-origin'})
+        fetch(url, { credentials: 'same-origin' })
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
@@ -182,7 +198,8 @@
         document.querySelectorAll('.product-edit-link, .product-delete-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                openModal(this.classList.contains('product-delete-link') ? 'Delete Product' : 'Edit Product', this.href);
+                const title = this.classList.contains('product-delete-link') ? 'Delete Product' : 'Edit Product';
+                openModal(title, this.href);
             });
         });
     }
@@ -226,6 +243,7 @@
         });
     }
 
+    // Initialize with initial data from server
     document.addEventListener('DOMContentLoaded', function() {
         searchCode.addEventListener('input', handleSearch);
         searchName.addEventListener('input', handleSearch);

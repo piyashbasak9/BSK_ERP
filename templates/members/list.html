@@ -40,7 +40,7 @@
                         </thead>
                         <tbody id="member-grid-body">
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-3">Loading members...</td>
+                                <td colspan="3" class="text-center text-muted py-3">Loading members...<\/td>
                             </tr>
                         </tbody>
                     </table>
@@ -79,8 +79,8 @@
 </template>
 
 <style>
-    .app-footer { display: none !important; }
-    /* Added CSS to force full height on parent containers */
+    /* Removed .app-footer { display: none !important; } - now footer will appear */
+    /* Added CSS to force full height on parent containers but allow footer */
     .container-fluid.content-wrapper,
     main,
     .row,
@@ -97,6 +97,30 @@
         background-color: #0d6efd;
         border-color: #0d6efd;
         color: white;
+    }
+    /* Ensure master-detail container respects flex and doesn't overflow */
+    .master-detail-container {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 0px;
+        min-height: 0;
+        overflow: auto;
+    }
+    .master-column, .detail-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .master-column .card, .detail-column .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .master-column .card-body, .detail-column .card-body {
+        flex: 1;
+        overflow-y: auto;
     }
 </style>
 
@@ -248,7 +272,7 @@
     // Render the table grid from fetched data
     function renderMemberTable(members) {
         if (!members || members.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No members found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No members found.<\/td><\/tr>';
             detailPanel.innerHTML = '<p class="text-muted text-center" style="padding: 40px 20px;">No members available.</p>';
             setDetailButtons(null);
             return;
@@ -257,10 +281,10 @@
         members.forEach(member => {
             html += `
                 <tr data-member-id="${member.id}" data-member-pk="${member.id}">
-                    <td>${escapeHtml(member.member_id || '')}</td>
-                    <td>${escapeHtml(member.name || '')}</td>
-                    <td>${escapeHtml(member.phone || '')}</td>
-                </tr>
+                    <td>${escapeHtml(member.member_id || '')}<\/td>
+                    <td>${escapeHtml(member.name || '')}<\/td>
+                    <td>${escapeHtml(member.phone || '')}<\/td>
+                <\/tr>
             `;
         });
         tableBody.innerHTML = html;
@@ -352,12 +376,11 @@
         });
         
         // Show loading state
-        tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         
         fetch(`/members/data/?${params.toString()}`, {credentials: 'same-origin'})
             .then(response => response.json())
             .then(data => {
-                // Expected response format: { data: [...], current_page: n, last_page: n, ... }
                 const members = data.data || [];
                 totalPages = data.last_page || 1;
                 renderMemberTable(members);
@@ -365,7 +388,7 @@
             })
             .catch(error => {
                 console.error('Grid fetch error:', error);
-                tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-3">Error loading members.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-3">Error loading members.<\/td><\/tr>';
                 paginationList.innerHTML = '';
             });
     }
