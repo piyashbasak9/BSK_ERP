@@ -45,7 +45,7 @@
                 </thead>
                 <tbody id="application-grid-body">
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-3">Loading loan applications...</td>
+                        <td colspan="7" class="text-center text-muted py-3">Loading loan applications...<\/td>
                     </tr>
                 </tbody>
             </table>
@@ -57,7 +57,7 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed the rule that hid the footer: .app-footer { display: none !important; } */
     .container-fluid.content-wrapper,
     main,
     .row,
@@ -74,6 +74,7 @@
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
+        margin-bottom: 0; /* Remove extra bottom margin */
     }
     .loan-product-card .card-body {
         display: flex;
@@ -127,7 +128,7 @@
 
     function renderApplicationTable(applications) {
         if (!applications || applications.length === 0) {
-            appTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No applications found.</td></tr>';
+            appTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No applications found.<\/td><\/tr>';
             return;
         }
 
@@ -135,16 +136,16 @@
         applications.forEach(app => {
             html += `
                 <tr>
-                    <td>${escapeHtml(app.member_id)}</td>
-                    <td>${escapeHtml(app.member_name)}</td>
-                    <td>${escapeHtml(app.product_name)}</td>
-                    <td>${escapeHtml(app.applied_amount)}</td>
-                    <td>${escapeHtml(app.status)}</td>
-                    <td>${escapeHtml(app.applied_date)}</td>
+                    <td>${escapeHtml(app.member_id)}<\/td>
+                    <td>${escapeHtml(app.member_name)}<\/td>
+                    <td>${escapeHtml(app.product_name)}<\/td>
+                    <td>${escapeHtml(app.applied_amount)}<\/td>
+                    <td>${escapeHtml(app.status)}<\/td>
+                    <td>${escapeHtml(app.applied_date)}<\/td>
                     <td>
                         <a href="/loans/applications/${app.id}/edit/" class="btn btn-sm btn-warning me-1 application-edit-link">Edit</a>
                         <a href="/loans/applications/${app.id}/delete/" class="btn btn-sm btn-danger application-delete-link">Delete</a>
-                    </td>
+                     <\/td>
                 </tr>
             `;
         });
@@ -214,7 +215,7 @@
             size: 20
         });
 
-        appTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
+        appTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'loans_application_data' %}?${params.toString()}`, {credentials: 'same-origin'})
             .then(response => response.json())
             .then(data => {
@@ -223,7 +224,7 @@
             })
             .catch(error => {
                 console.error('Application list load error', error);
-                appTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load applications.</td></tr>';
+                appTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Unable to load applications.<\/td><\/tr>';
                 appPaginationList.innerHTML = '';
             });
     }

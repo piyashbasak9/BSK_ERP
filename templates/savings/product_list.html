@@ -32,7 +32,7 @@
                     </tr>
                 </thead>
                 <tbody id="product-grid-body">
-                    <tr><td colspan="6" class="text-center text-muted py-3">Loading products...</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-3">Loading products...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -43,7 +43,7 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed the rule that hid the footer: .app-footer { display: none !important; } */
     .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
@@ -51,10 +51,31 @@
         min-height: 0 !important;
         height: auto !important;
     }
-    .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
-    .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-    .table-responsive { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-    .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+    .card { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        height: 100%; 
+        margin-bottom: 0; /* Remove extra bottom margin to avoid pushing footer */
+    }
+    .card-body { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow: hidden; 
+    }
+    .table-responsive { 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow-y: auto; 
+    }
+    .pagination .page-item.active .page-link { 
+        background-color: #0d6efd; 
+        border-color: #0d6efd; 
+        color: white; 
+    }
 </style>
 {% endblock %}
 
@@ -82,28 +103,27 @@
 
     function renderTable(products) {
         if (!products || products.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No products found.</td></tr>';
+            tableBody.innerHTML = '<td><td colspan="6" class="text-center text-muted py-3">No products found.<\/td><\/tr>';
             return;
         }
         let html = '';
         products.forEach(p => {
             html += `<tr>
-                <td>${escapeHtml(p.code)}</td>
-                <td>${escapeHtml(p.name)}</td>
-                <td>${escapeHtml(p.interest_rate)}%</td>
-                <td>${escapeHtml(p.min_balance)}</td>
-                <td>${escapeHtml(p.is_active)}</td>
+                <td>${escapeHtml(p.code)}<\/td>
+                <td>${escapeHtml(p.name)}<\/td>
+                <td>${escapeHtml(p.interest_rate)}%<\/td>
+                <td>${escapeHtml(p.min_balance)}<\/td>
+                <td>${escapeHtml(p.is_active)}<\/td>
                 <td>
                     <a href="/savings/products/${p.id}/edit/" class="btn btn-sm btn-warning me-1 product-edit-link">Edit</a>
                     <a href="/savings/products/${p.id}/delete/" class="btn btn-sm btn-danger product-delete-link">Delete</a>
-                </td>
+                 <\/td>
             </tr>`;
         });
         tableBody.innerHTML = html;
         attachActionHandlers();
     }
 
-    // Pagination rendering – identical to loan product page
     function renderPagination(current, total) {
         currentPage = current;
         totalPages = total;
@@ -132,7 +152,6 @@
                     <a class="page-link" href="#" data-page="${current + 1}">Next</a>
                 </li>`;
         paginationList.innerHTML = html;
-        // Add click handlers
         paginationList.querySelectorAll('a.page-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -151,7 +170,7 @@
             page: page,
             size: 20
         });
-        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'savings_product_data' %}?${params.toString()}`, { credentials: 'same-origin' })
             .then(response => response.json())
             .then(data => {
@@ -160,7 +179,7 @@
             })
             .catch(err => {
                 console.error(err);
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load products.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Unable to load products.<\/td><\/tr>';
                 paginationList.innerHTML = '';
             });
     }
@@ -243,7 +262,6 @@
         });
     }
 
-    // Initialize with initial data from server
     document.addEventListener('DOMContentLoaded', function() {
         searchCode.addEventListener('input', handleSearch);
         searchName.addEventListener('input', handleSearch);

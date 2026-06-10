@@ -38,7 +38,7 @@
                 </thead>
                 <tbody id="product-grid-body">
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-3">Loading loan products...</td>
+                        <td colspan="11" class="text-center text-muted py-3">Loading loan products...<\/td>
                     </tr>
                 </tbody>
             </table>
@@ -50,7 +50,7 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed the rule that hid the footer: .app-footer { display: none !important; } */
     .container-fluid.content-wrapper,
     main,
     .row,
@@ -67,6 +67,7 @@
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
+        margin-bottom: 0; /* Remove extra bottom margin to avoid pushing footer */
     }
     .loan-product-card .card-body {
         display: flex;
@@ -119,7 +120,7 @@
 
     function renderProductTable(products) {
         if (!products || products.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No products found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No products found.<\/td><\/tr>';
             return;
         }
 
@@ -127,20 +128,20 @@
         products.forEach(product => {
             html += `
                 <tr>
-                    <td>${escapeHtml(product.code)}</td>
-                    <td>${escapeHtml(product.name)}</td>
-                    <td>${escapeHtml(product.interest_rate)}</td>
-                    <td>${escapeHtml(product.min_amount)}</td>
-                    <td>${escapeHtml(product.max_amount)}</td>
-                    <td>${escapeHtml(product.duration_months)}</td>
-                    <td>${escapeHtml(product.installment_frequency)}</td>
-                    <td>${escapeHtml(product.processing_fee)}</td>
-                    <td>${escapeHtml(product.late_penalty_rate)}</td>
-                    <td>${escapeHtml(product.is_active)}</td>
+                    <td>${escapeHtml(product.code)}<\/td>
+                    <td>${escapeHtml(product.name)}<\/td>
+                    <td>${escapeHtml(product.interest_rate)}<\/td>
+                    <td>${escapeHtml(product.min_amount)}<\/td>
+                    <td>${escapeHtml(product.max_amount)}<\/td>
+                    <td>${escapeHtml(product.duration_months)}<\/td>
+                    <td>${escapeHtml(product.installment_frequency)}<\/td>
+                    <td>${escapeHtml(product.processing_fee)}<\/td>
+                    <td>${escapeHtml(product.late_penalty_rate)}<\/td>
+                    <td>${escapeHtml(product.is_active)}<\/td>
                     <td>
                         <a href="/loans/products/${product.id}/edit/" class="btn btn-sm btn-warning me-1 product-edit-link">Edit</a>
                         <a href="/loans/products/${product.id}/delete/" class="btn btn-sm btn-danger product-delete-link">Delete</a>
-                    </td>
+                     <\/td>
                 </tr>
             `;
         });
@@ -207,7 +208,7 @@
             size: 20
         });
 
-        tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'loans_product_data' %}?${params.toString()}`, {credentials: 'same-origin'})
             .then(response => response.json())
             .then(data => {
@@ -216,7 +217,7 @@
             })
             .catch(error => {
                 console.error('Product list load error', error);
-                tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-3">Unable to load products.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-3">Unable to load products.<\/td><\/tr>';
                 paginationList.innerHTML = '';
             });
     }

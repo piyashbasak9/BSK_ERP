@@ -31,18 +31,16 @@
                     </tr>
                 </thead>
                 <tbody id="disbursement-grid-body">
-                    <tr><td colspan="5" class="text-center text-muted py-3">Loading disbursements...<\/td></tr>
+                    <td><td colspan="5" class="text-center text-muted py-3">Loading disbursements...<\/td></tr>
                 </tbody>
             </table>
         </div>
-        <nav id="pagination-container" class="mt-3 flex-shrink-0">
-            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
-        </nav>
+        <!-- Pagination container removed -->
     </div>
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed .app-footer { display: none !important; } – footer is now visible */
     .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
@@ -56,6 +54,7 @@
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
+        margin-bottom: 0;
     }
     .loan-product-card .card-body {
         display: flex;
@@ -72,11 +71,6 @@
     .loan-product-table-container table {
         margin-bottom: 0;
     }
-    .pagination .page-item.active .page-link {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-        color: white;
-    }
 </style>
 {% endblock %}
 
@@ -84,12 +78,8 @@
 <script type="application/json" id="disbursement-initial-json">{{ initial_data_json|safe }}</script>
 <script>
     const tableBody = document.getElementById('disbursement-grid-body');
-    const paginationList = document.getElementById('pagination-list');
     const searchMember = document.getElementById('disbursement-search-member');
     const searchMethod = document.getElementById('disbursement-search-method');
-
-    let currentPage = 1;
-    let totalPages = 1;
     let searchTimer;
 
     function escapeHtml(str) {
@@ -124,73 +114,26 @@
         tableBody.innerHTML = html;
     }
 
-    function renderPagination(current, total) {
-        currentPage = current;
-        totalPages = total;
-        if (total <= 1) {
-            paginationList.innerHTML = '';
-            return;
-        }
-        let paginationHtml = `
-            <li class="page-item ${current === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
-            </li>
-        `;
-        let startPage = Math.max(1, current - 2);
-        let endPage = Math.min(total, current + 2);
-        if (endPage - startPage < 4) {
-            if (startPage > 1) startPage = Math.max(1, endPage - 4);
-            if (endPage < total) endPage = Math.min(total, startPage + 4);
-        }
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `
-                <li class="page-item ${i === current ? 'active' : ''}">
-                    <a class="page-link" href="#" data-page="${i}">${i}</a>
-                </li>
-            `;
-        }
-        paginationHtml += `
-            <li class="page-item ${current === total ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current + 1}">Next</a>
-            </li>
-        `;
-        paginationList.innerHTML = paginationHtml;
-        paginationList.querySelectorAll('a.page-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const page = parseInt(this.dataset.page, 10);
-                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
-                    loadDisbursements(page);
-                }
-            });
-        });
-    }
-
-    function loadDisbursements(page = 1) {
-        currentPage = page;
+    function loadDisbursements() {
         const params = new URLSearchParams({
             member_name: searchMember.value.trim(),
-            method: searchMethod.value.trim(),
-            page: page,
-            size: 20
+            method: searchMethod.value.trim()
         });
         tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'loans_disbursement_data' %}?${params.toString()}`, { credentials: 'same-origin' })
             .then(response => response.json())
             .then(data => {
                 renderDisbursementTable(data.data || []);
-                renderPagination(data.current_page || 1, data.last_page || 1);
             })
             .catch(err => {
                 console.error('Disbursement load error', err);
                 tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load disbursements.<\/td><\/tr>';
-                paginationList.innerHTML = '';
             });
     }
 
     function handleSearch() {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => loadDisbursements(1), 300);
+        searchTimer = setTimeout(() => loadDisbursements(), 300);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -200,12 +143,11 @@
             const initial = JSON.parse(document.getElementById('disbursement-initial-json').textContent || 'null');
             if (initial && Array.isArray(initial.data)) {
                 renderDisbursementTable(initial.data);
-                renderPagination(initial.current_page || 1, initial.last_page || 1);
             } else {
-                loadDisbursements(1);
+                loadDisbursements();
             }
         } catch(e) {
-            loadDisbursements(1);
+            loadDisbursements();
         }
     });
 </script>

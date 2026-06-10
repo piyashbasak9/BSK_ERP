@@ -29,13 +29,11 @@
                     </tr>
                 </thead>
                 <tbody id="schedule-grid-body">
-                    <tr><td colspan="8" class="text-center text-muted py-3">Loading schedules...</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">Loading schedules...<\/td></tr>
                 </tbody>
             </table>
         </div>
-        <nav id="pagination-container" class="mt-3 flex-shrink-0">
-            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
-        </nav>
+        <!-- Pagination container removed -->
     </div>
 </div>
 
@@ -55,7 +53,7 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed .app-footer { display: none !important; } – footer is now visible */
     .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
@@ -69,6 +67,7 @@
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
+        margin-bottom: 0;
     }
     .loan-product-card .card-body {
         display: flex;
@@ -85,11 +84,6 @@
     .loan-product-table-container table {
         margin-bottom: 0;
     }
-    .pagination .page-item.active .page-link {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-        color: white;
-    }
 </style>
 {% endblock %}
 
@@ -97,11 +91,8 @@
 <script type="application/json" id="schedule-initial-json">{{ initial_data_json|safe }}</script>
 <script>
     const tableBody = document.getElementById('schedule-grid-body');
-    const paginationList = document.getElementById('pagination-list');
     const searchMember = document.getElementById('schedule-search-member');
     const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
-    let currentPage = 1;
-    let totalPages = 1;
     let searchTimer;
 
     function escapeHtml(str) {
@@ -116,7 +107,7 @@
 
     function renderScheduleTable(schedules) {
         if (!schedules.length) {
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No schedules found.</td></tr>';
+            tableBody.innerHTML = '<td><td colspan="8" class="text-center text-muted">No schedules found.<\/td><\/tr>';
             return;
         }
         let html = '';
@@ -125,18 +116,18 @@
             const remainingDue = parseFloat(s.total_due) - (parseFloat(s.paid_total) || 0);
             html += `
                 <tr class="${isPaid ? 'table-success' : (remainingDue > 0 ? 'table-warning' : '')}">
-                    <td>${escapeHtml(s.member_name)}</td>
-                    <td>${escapeHtml(s.installment_no)}</td>
-                    <td>${escapeHtml(s.due_date)}</td>
-                    <td>${escapeHtml(s.principal_amount)}</td>
-                    <td>${escapeHtml(s.interest_amount)}</td>
-                    <td>${escapeHtml(s.total_due)}</td>
-                    <td>${escapeHtml(s.is_paid)}</td>
+                    <td>${escapeHtml(s.member_name)}<\/td>
+                    <td>${escapeHtml(s.installment_no)}<\/td>
+                    <td>${escapeHtml(s.due_date)}<\/td>
+                    <td>${escapeHtml(s.principal_amount)}<\/td>
+                    <td>${escapeHtml(s.interest_amount)}<\/td>
+                    <td>${escapeHtml(s.total_due)}<\/td>
+                    <td>${escapeHtml(s.is_paid)}<\/td>
                     <td>
                         ${!isPaid ? `<button class="btn btn-sm btn-primary pay-schedule" data-id="${s.id}">Pay</button>` : ''}
                         <a href="/loans/schedules/${s.id}/edit/" class="btn btn-sm btn-warning">Edit</a>
-                    </td>
-                </tr>
+                     <\/td>
+                <\/tr>
             `;
         });
         tableBody.innerHTML = html;
@@ -154,7 +145,7 @@
 
     function openPaymentModal(scheduleId) {
         const modalBody = document.getElementById('payment-modal-body');
-        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div> Loading...</div>';
+        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"><\/div> Loading...<\/div>';
         paymentModal.show();
 
         fetch(`/loans/schedules/${scheduleId}/pay/`, { credentials: 'same-origin' })
@@ -178,15 +169,14 @@
                         form.addEventListener('submit', handlePaymentSubmit);
                     }
                 } else {
-                    modalBody.innerHTML = '<div class="alert alert-danger">Failed to load payment form.</div>';
+                    modalBody.innerHTML = '<div class="alert alert-danger">Failed to load payment form.<\/div>';
                 }
             })
             .catch(err => {
                 console.error(err);
-                modalBody.innerHTML = '<div class="alert alert-danger">Error loading payment form.</div>';
+                modalBody.innerHTML = '<div class="alert alert-danger">Error loading payment form.<\/div>';
             });
     }
-
 
     function getCookie(name) {
         let cookieValue = null;
@@ -209,7 +199,7 @@
         const formData = new FormData(form);
         const submitUrl = form.action;
         const modalBody = document.getElementById('payment-modal-body');
-        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div> Processing...</div>';
+        modalBody.innerHTML = '<div class="text-center"><div class="spinner-border"><\/div> Processing...<\/div>';
 
         const csrftoken = getCookie('csrftoken');
 
@@ -219,89 +209,51 @@
             credentials: 'same-origin',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': csrftoken  // ✅ Add CSRF token here
+                'X-CSRFToken': csrftoken
             }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 paymentModal.hide();
-                loadSchedules(currentPage);
+                loadSchedules();
                 alert(`Success: ${data.message}`);
             } else {
                 modalBody.innerHTML = `
-                    <div class="alert alert-danger">${data.error}</div>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <div class="alert alert-danger">${data.error}<\/div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close<\/button>
                 `;
             }
         })
         .catch(err => {
-            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred. Please try again.</div>';
+            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred. Please try again.<\/div>';
         });
     }
 
-    function renderPagination(current, total) {
-        currentPage = current;
-        totalPages = total;
-        if (total <= 1) {
-            paginationList.innerHTML = '';
-            return;
-        }
-        let html = `
-            <li class="page-item ${current === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${current-1}">Previous</a>
-            </li>
-        `;
-        let start = Math.max(1, current-2);
-        let end = Math.min(total, current+2);
-        if (end-start < 4) {
-            if (start > 1) start = Math.max(1, end-4);
-            if (end < total) end = Math.min(total, start+4);
-        }
-        for (let i = start; i <= end; i++) {
-            html += `<li class="page-item ${i===current?'active':''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
-        }
-        html += `<li class="page-item ${current===total?'disabled':''}"><a class="page-link" href="#" data-page="${current+1}">Next</a></li>`;
-        paginationList.innerHTML = html;
-        paginationList.querySelectorAll('a.page-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                let page = parseInt(this.dataset.page);
-                if (!isNaN(page) && page>=1 && page<=totalPages && page !== currentPage) {
-                    loadSchedules(page);
-                }
-            });
-        });
-    }
-
-    function loadSchedules(page=1) {
-        currentPage = page;
+    function loadSchedules() {
         const params = new URLSearchParams({
-            member_name: searchMember.value.trim(),
-            page: page,
-            size: 20
+            member_name: searchMember.value.trim()
         });
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Loading...<\/td><\/tr>';
         fetch(`{% url 'loans_schedule_data' %}?${params.toString()}`, {credentials: 'same-origin'})
             .then(res => res.json())
             .then(data => {
                 renderScheduleTable(data.data || []);
-                renderPagination(data.current_page || 1, data.last_page || 1);
             })
             .catch(err => {
                 console.error(err);
-                tableBody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load schedules.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-danger">Failed to load schedules.<\/td><\/tr>';
             });
     }
 
     function handleSearch() {
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => loadSchedules(1), 300);
+        searchTimer = setTimeout(() => loadSchedules(), 300);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         searchMember.addEventListener('input', handleSearch);
-        loadSchedules(1);
+        loadSchedules();
     });
 </script>
 {% endblock %}

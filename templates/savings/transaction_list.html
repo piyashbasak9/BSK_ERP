@@ -32,7 +32,7 @@
                     </tr>
                 </thead>
                 <tbody id="trans-grid-body">
-                    <td><td colspan="6" class="text-center text-muted py-3">Loading transactions...<\/td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-3">Loading transactions...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -43,7 +43,7 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed the rule that hid the footer: .app-footer { display: none !important; } */
     .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
@@ -51,10 +51,31 @@
         min-height: 0 !important;
         height: auto !important;
     }
-    .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
-    .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-    .table-responsive { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-    .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+    .card { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        height: 100%; 
+        margin-bottom: 0; /* Remove extra bottom margin to avoid pushing footer */
+    }
+    .card-body { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow: hidden; 
+    }
+    .table-responsive { 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow-y: auto; 
+    }
+    .pagination .page-item.active .page-link { 
+        background-color: #0d6efd; 
+        border-color: #0d6efd; 
+        color: white; 
+    }
 </style>
 {% endblock %}
 

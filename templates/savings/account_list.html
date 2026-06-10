@@ -42,7 +42,8 @@
 </div>
 
 <style>
-    .app-footer { display: none !important; }
+    /* Removed the rule that hid the footer: .app-footer { display: none !important; } */
+    /* Ensure the card and container behave well with the footer */
     .container-fluid.content-wrapper, main, .row, .col-12 {
         display: flex !important;
         flex-direction: column !important;
@@ -50,10 +51,31 @@
         min-height: 0 !important;
         height: auto !important;
     }
-    .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
-    .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-    .table-responsive { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-    .pagination .page-item.active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+    .card { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        height: 100%; 
+        margin-bottom: 0; /* Remove extra bottom margin to avoid pushing footer */
+    }
+    .card-body { 
+        display: flex; 
+        flex-direction: column; 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow: hidden; 
+    }
+    .table-responsive { 
+        flex: 1 1 auto; 
+        min-height: 0; 
+        overflow-y: auto; 
+    }
+    .pagination .page-item.active .page-link { 
+        background-color: #0d6efd; 
+        border-color: #0d6efd; 
+        color: white; 
+    }
 </style>
 {% endblock %}
 
@@ -100,7 +122,6 @@
         attachActionHandlers();
     }
 
-    // Pagination rendering – identical to loan product page
     function renderPagination(current, total) {
         currentPage = current;
         totalPages = total;
@@ -109,7 +130,6 @@
             return;
         }
         let html = '';
-        // Previous button
         html += `<li class="page-item ${current === 1 ? 'disabled' : ''}">
                     <a class="page-link" href="#" data-page="${current - 1}">Previous</a>
                 </li>`;
@@ -124,12 +144,10 @@
                         <a class="page-link" href="#" data-page="${i}">${i}</a>
                     </li>`;
         }
-        // Next button
         html += `<li class="page-item ${current === total ? 'disabled' : ''}">
                     <a class="page-link" href="#" data-page="${current + 1}">Next</a>
                 </li>`;
         paginationList.innerHTML = html;
-        // Attach click handlers
         paginationList.querySelectorAll('a.page-link').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();

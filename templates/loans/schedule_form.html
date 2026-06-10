@@ -2,9 +2,9 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
-        <div class="card mb-4">
+<div class="row justify-content-center" style="flex: 1; min-height: 0;">
+    <div class="col-12 col-lg-8" style="display: flex; flex-direction: column;">
+        <div class="card mb-4" style="flex: 1; margin-bottom: 0 !important;">
             <div class="card-header">
                 <h2 class="mb-0">Edit Installment Schedule</h2>
             </div>
@@ -21,6 +21,35 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Ensure the row takes full height so footer stays at bottom */
+    .row.justify-content-center {
+        flex: 1;
+        min-height: 0;
+        margin: 0;
+        width: 100%;
+    }
+    .col-12 {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0 !important;
+    }
+    .card-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+    /* Remove any extra margin/padding that might cause overflow */
+    body, .content-wrapper {
+        overflow-x: hidden;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}

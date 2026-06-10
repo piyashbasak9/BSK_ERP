@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth.views import LoginView, LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic.base import RedirectView
 from apps.authentication.views import DashboardView
 
 urlpatterns = [
@@ -19,6 +20,7 @@ urlpatterns = [
     path('reports/', include('apps.reports.urls')),
     path('audit/', include('apps.audit.urls')),
     path('settings/', include('apps.settings.urls')),
+    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.ico', permanent=False)),
 ]
 
 if settings.DEBUG:
