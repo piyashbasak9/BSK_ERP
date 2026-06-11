@@ -2,11 +2,11 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
-        <div class="card mb-4">
+<div class="row justify-content-center" style="flex: 1; min-height: 0;">
+    <div class="col-12 col-lg-8" style="display: flex; flex-direction: column;">
+        <div class="card mb-4" style="flex: 1; margin-bottom: 0 !important;">
             <div class="card-header">
-                <h2 class="mb-0">New Collection Entry</h2>
+                <h2 class="mb-0">Add Collection Entry</h2>
             </div>
             <div class="card-body">
                 <form method="post" action="{% url 'collections_entry_add' %}">
@@ -21,4 +21,118 @@
         </div>
     </div>
 </div>
+
+<style>
+    .row.justify-content-center {
+        flex: 1;
+        min-height: 0;
+        margin: 0;
+        width: 100%;
+    }
+    .col-12 {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0 !important;
+    }
+    .card-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+    body, .content-wrapper {
+        overflow-x: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.2.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Member select
+        var memberSelect = document.querySelector('select[name="member"]');
+        if (window.jQuery && window.jQuery.fn.select2 && memberSelect) {
+            window.jQuery(memberSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select a member',
+                minimumResultsForSearch: 0,
+                dropdownAutoWidth: true,
+                allowClear: false
+            });
+            memberSelect.dataset.select2Initialized = 'true';
+        }
+
+        // Collection type change handler to show/hide conditional fields
+        var typeSelect = document.querySelector('select[name="collection_type"]');
+        var loanInstallmentGroup = document.querySelector('.field-loan_installment');
+        var savingsAccountGroup = document.querySelector('.field-savings_account');
+
+        function toggleConditionalFields() {
+            if (!typeSelect) return;
+            var type = typeSelect.value;
+            if (type === 'loan') {
+                if (loanInstallmentGroup) loanInstallmentGroup.style.display = 'block';
+                if (savingsAccountGroup) savingsAccountGroup.style.display = 'none';
+            } else if (type === 'savings') {
+                if (loanInstallmentGroup) loanInstallmentGroup.style.display = 'none';
+                if (savingsAccountGroup) savingsAccountGroup.style.display = 'block';
+            } else {
+                if (loanInstallmentGroup) loanInstallmentGroup.style.display = 'none';
+                if (savingsAccountGroup) savingsAccountGroup.style.display = 'none';
+            }
+        }
+
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleConditionalFields);
+            toggleConditionalFields();
+        }
+
+        // Loan installment select2
+        var loanInstallmentSelect = document.querySelector('select[name="loan_installment"]');
+        if (window.jQuery && window.jQuery.fn.select2 && loanInstallmentSelect) {
+            window.jQuery(loanInstallmentSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select a loan installment',
+                minimumResultsForSearch: 0,
+                dropdownAutoWidth: true,
+                allowClear: true
+            });
+        }
+
+        // Savings account select2
+        var savingsAccountSelect = document.querySelector('select[name="savings_account"]');
+        if (window.jQuery && window.jQuery.fn.select2 && savingsAccountSelect) {
+            window.jQuery(savingsAccountSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select a savings account',
+                minimumResultsForSearch: 0,
+                dropdownAutoWidth: true,
+                allowClear: true
+            });
+        }
+
+        // Sheet select (if exists)
+        var sheetSelect = document.querySelector('select[name="sheet"]');
+        if (window.jQuery && window.jQuery.fn.select2 && sheetSelect) {
+            window.jQuery(sheetSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select a collection sheet',
+                minimumResultsForSearch: 0,
+                dropdownAutoWidth: true,
+                allowClear: false
+            });
+        }
+    });
+</script>
 {% endblock %}
