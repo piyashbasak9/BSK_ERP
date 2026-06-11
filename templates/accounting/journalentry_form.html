@@ -2,20 +2,30 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
-        <div class="card mb-4">
+<div class="row justify-content-center" style="flex: 1; min-height: 0;">
+    <div class="col-12 col-lg-10" style="display: flex; flex-direction: column;">
+        <div class="card mb-4" style="flex: 1; margin-bottom: 0 !important;">
             <div class="card-header">
                 <h2 class="mb-0">{% if object %}Edit Journal Entry{% else %}Add Journal Entry{% endif %}</h2>
             </div>
             <div class="card-body">
-                {% if object %}
-                <form method="post" action="{% url 'journalentry_edit' pk=object.pk %}">
-                {% else %}
-                <form method="post" action="{% url 'journalentry_add' %}">
-                {% endif %}
+                <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}
+                    <h5 class="mt-4">Journal Items</h5>
+                    <div id="formset-container">
+                        {{ formset.management_form }}
+                        {% for item_form in formset %}
+                            <div class="card mb-2 p-3 border">
+                                {{ item_form|crispy }}
+                                {% if item_form.instance.pk %}
+                                    <div class="form-check mt-2">
+                                        {{ item_form.DELETE }} Delete this item
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
                     <div class="mt-3 d-flex gap-2 flex-wrap">
                         <button type="submit" class="btn btn-success">Save</button>
                         <a href="{% url 'journalentry_list' %}" class="btn btn-secondary">Back</a>
@@ -25,4 +35,60 @@
         </div>
     </div>
 </div>
+
+<style>
+    .row.justify-content-center {
+        flex: 1;
+        min-height: 0;
+        margin: 0;
+        width: 100%;
+    }
+    .col-12 {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0 !important;
+    }
+    .card-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.2.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize select2 for all account selects in formset
+        document.querySelectorAll('select[name$="-account"]').forEach(select => {
+            if (window.jQuery && window.jQuery.fn.select2) {
+                window.jQuery(select).select2({
+                    width: '100%',
+                    theme: 'bootstrap-5',
+                    placeholder: 'Select account',
+                    allowClear: true
+                });
+            }
+        });
+
+        // Branch select (main form)
+        var branchSelect = document.querySelector('select[name="branch"]');
+        if (window.jQuery && branchSelect) {
+            window.jQuery(branchSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select branch',
+                allowClear: true
+            });
+        }
+    });
+</script>
 {% endblock %}

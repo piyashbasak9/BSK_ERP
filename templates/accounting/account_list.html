@@ -3,12 +3,24 @@
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h3>Chart of Accounts</h3>
-        <a href="{% url 'account_add' %}" class="btn btn-success btn-sm">+ Add Account</a>
+        <h5 class="mb-0">Chart of Accounts</h5>
+        <a class="btn btn-success btn-sm" href="{% url 'account_add' %}">+ Add Account</a>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+    <div class="search-controls p-3">
+        <div class="d-flex gap-2">
+            <div class="input-group input-group-sm flex-fill">
+                <span class="input-group-text">Code</span>
+                <input id="account-search-code" type="search" class="form-control" placeholder="Search by code">
+            </div>
+            <div class="input-group input-group-sm flex-fill">
+                <span class="input-group-text">Name</span>
+                <input id="account-search-name" type="search" class="form-control" placeholder="Search by name">
+            </div>
+        </div>
+    </div>
+    <div class="card-body d-flex flex-column" style="min-height: 400px;">
+        <div class="table-responsive flex-fill">
+            <table class="table table-sm table-hover" id="account-grid-table">
                 <thead>
                     <tr>
                         <th>Code</th>
@@ -18,24 +30,245 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for account in accounts %}
-                    <tr>
-                        <td>{{ account.code }}</td>
-                        <td>{{ account.name }}</td>
-                        <td>{{ account.get_account_type_display }}</td>
-                        <td>{% if account.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-danger">Inactive</span>{% endif %}</td>
-                        <td>
-                            <a href="{% url 'account_edit' pk=account.pk %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'account_delete' pk=account.pk %}" class="btn btn-sm btn-danger">Delete</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted">No accounts found</td></tr>
-                    {% endfor %}
+                <tbody id="account-grid-body">
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading accounts...<\/td></tr>
                 </tbody>
             </table>
         </div>
+        <nav class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
     </div>
 </div>
+
+<style>
+    .container-fluid.content-wrapper, main, .row, .col-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+    .card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        margin-bottom: 0;
+    }
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .table-responsive {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="account-initial-json">{{ initial_data_json|safe }}</script>
+<script>
+    const tableBody = document.getElementById('account-grid-body');
+    const paginationList = document.getElementById('pagination-list');
+    const searchCode = document.getElementById('account-search-code');
+    const searchName = document.getElementById('account-search-name');
+    const genericModal = document.getElementById('genericModal');
+    let currentPage = 1, totalPages = 1, searchTimer;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderTable(accounts) {
+        if (!accounts || accounts.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No accounts found.<\/td><\/tr>';
+            return;
+        }
+        let html = '';
+        accounts.forEach(a => {
+            html += `<tr>
+                <td>${escapeHtml(a.code)}<\/td>
+                <td>${escapeHtml(a.name)}<\/td>
+                <td>${escapeHtml(a.account_type)}<\/td>
+                <td>${escapeHtml(a.is_active)}<\/td>
+                <td>
+                    <a href="/accounting/accounts/${a.id}/edit/" class="btn btn-sm btn-warning me-1 account-edit-link">Edit</a>
+                    <a href="/accounting/accounts/${a.id}/delete/" class="btn btn-sm btn-danger account-delete-link">Delete</a>
+                 <\/td>
+            </tr>`;
+        });
+        tableBody.innerHTML = html;
+        attachActionHandlers();
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${current-1}">Previous</a>
+                    </li>`;
+        let start = Math.max(1, current-2);
+        let end = Math.min(total, current+2);
+        if (end - start < 4) {
+            if (start > 1) start = Math.max(1, end-4);
+            if (end < total) end = Math.min(total, start+4);
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<li class="page-item ${i === current ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
+        }
+        html += `<li class="page-item ${current === total ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current+1}">Next</a>
+                </li>`;
+        paginationList.innerHTML = html;
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                let page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadAccounts(page);
+                }
+            });
+        });
+    }
+
+    function loadAccounts(page = 1) {
+        const params = new URLSearchParams({
+            code: searchCode.value.trim(),
+            name: searchName.value.trim(),
+            page: page,
+            size: 20
+        });
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
+        fetch(`{% url 'account_data' %}?${params.toString()}`, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                renderTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(err => {
+                console.error(err);
+                tableBody.innerHTML = '</tr><td colspan="5" class="text-center text-danger py-3">Unable to load accounts.<\/td><\/tr>';
+                paginationList.innerHTML = '';
+            });
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadAccounts(1), 300);
+    }
+
+    function openModal(title, url) {
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+        modal.show();
+        fetch(url, { credentials: 'same-origin' })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
+    }
+
+    function attachActionHandlers() {
+        document.querySelectorAll('.account-edit-link, .account-delete-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const title = this.classList.contains('account-delete-link') ? 'Delete Account' : 'Edit Account';
+                openModal(title, this.href);
+            });
+        });
+    }
+
+    function handleModalSubmit(event) {
+        const form = event.target.closest('form');
+        if (!form || !genericModal || !genericModal.contains(form)) return;
+        event.preventDefault();
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = bootstrap.Modal.getInstance(genericModal);
+        const submitUrl = form.action;
+        const formData = new FormData(form);
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text().then(text => ({ status: response.status, redirected: response.redirected, text: text })))
+        .then(result => {
+            if (result.redirected) {
+                if (modal) modal.hide();
+                loadAccounts(currentPage);
+                return;
+            }
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(result.text, 'text/html');
+            const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+            const hasForm = !!doc.querySelector('form');
+            if (result.status === 200 && hasForm) {
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+            } else if (result.status >= 200 && result.status < 300) {
+                if (modal) modal.hide();
+                loadAccounts(currentPage);
+            } else {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes.</div>';
+            }
+        })
+        .catch(err => {
+            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred.</div>';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        searchCode.addEventListener('input', handleSearch);
+        searchName.addEventListener('input', handleSearch);
+        if (genericModal) genericModal.addEventListener('submit', handleModalSubmit);
+        try {
+            const initial = JSON.parse(document.getElementById('account-initial-json').textContent || 'null');
+            if (initial && Array.isArray(initial.data)) {
+                renderTable(initial.data);
+                renderPagination(initial.current_page || 1, initial.last_page || 1);
+            } else {
+                loadAccounts(1);
+            }
+        } catch(e) {
+            loadAccounts(1);
+        }
+    });
+</script>
 {% endblock %}

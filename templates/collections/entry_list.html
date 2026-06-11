@@ -32,10 +32,11 @@
                         <th>Member</th>
                         <th>Collection Type</th>
                         <th>Amount</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="entry-grid-body">
-                    <td><td colspan="4" class="text-center text-muted py-3">Loading collection entries...<\/td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading collection entries...<\/td></tr>
                 </tbody>
             </table>
         </div>
@@ -102,7 +103,7 @@
 
     function renderTable(entries) {
         if (!entries || entries.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No collection entries found.<\/td><\/tr>';
+            tableBody.innerHTML = '<td><td colspan="5" class="text-center text-muted py-3">No collection entries found.<\/td><\/tr>';
             return;
         }
         let html = '';
@@ -112,6 +113,10 @@
                 <td>${escapeHtml(e.member_name)}<\/td>
                 <td>${escapeHtml(e.collection_type)}<\/td>
                 <td>${escapeHtml(e.amount)}<\/td>
+                <td>
+                    <a href="/collections/entries/${e.id}/edit/" class="btn btn-sm btn-warning me-1">Edit</a>
+                    <a href="/collections/entries/${e.id}/delete/" class="btn btn-sm btn-danger">Delete</a>
+                 <\/td>
             </tr>`;
         });
         tableBody.innerHTML = html;
@@ -160,7 +165,7 @@
             page: page,
             size: 20
         });
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
         fetch(`{% url 'collections_entry_data' %}?${params.toString()}`, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
@@ -169,7 +174,7 @@
             })
             .catch(err => {
                 console.error(err);
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Unable to load entries.<\/td><\/tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load entries.<\/td><\/tr>';
                 paginationList.innerHTML = '';
             });
     }

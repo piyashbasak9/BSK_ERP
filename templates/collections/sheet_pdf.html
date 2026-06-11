@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Collection Sheet - {{ sheet.id }}</title>
+    <style>
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; margin: 20px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .info { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; }
+        .info td { padding: 4px; border: none; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Daily Collection Sheet</h1>
+        <p>Generated on {{ today }}</p>
+    </div>
+    <div class="info">
+        <table>
+            <tr><td style="border: none;"><strong>Sheet ID:</strong> {{ sheet.id }}</td>
+                <td style="border: none;"><strong>Date:</strong> {{ sheet.date }}</td>
+            </tr>
+            <tr><td style="border: none;"><strong>Branch:</strong> {{ sheet.branch.name }}</td>
+                <td style="border: none;"><strong>Collector:</strong> {{ sheet.collector.username }}</td>
+            </tr>
+            <tr><td style="border: none;" colspan="2"><strong>Total Cash:</strong> ৳ {{ sheet.total_cash|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+    <table>
+        <thead>
+            <tr><th>Member</th><th>Type</th><th>Amount</th><th>Remark</th></tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr>
+                <td>{{ e.member.name }}</td>
+                <td>{{ e.get_collection_type_display }}</td>
+                <td>৳ {{ e.amount|floatformat:2 }}</td>
+                <td>{{ e.remark|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center">No entries found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="footer">
+        This is a computer-generated document. 
+        Verified: {% if sheet.verified %}Yes (by {{ sheet.verified_by.username }}){% else %}No{% endif %}.
+    </div>
+</body>
+</html>

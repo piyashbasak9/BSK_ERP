@@ -105,6 +105,7 @@
         }
         let html = '';
         sheets.forEach(s => {
+            const isVerified = s.verified === 'Yes';
             html += `<tr>
                 <td>${escapeHtml(s.date)}<\/td>
                 <td>${escapeHtml(s.branch_name)}<\/td>
@@ -113,11 +114,54 @@
                 <td>${escapeHtml(s.verified)}<\/td>
                 <td>
                     <a href="/collections/sheets/${s.id}/edit/" class="btn btn-sm btn-warning me-1 sheet-edit-link">Edit</a>
+                    ${!isVerified ? `<button class="btn btn-sm btn-success verify-sheet me-1" data-id="${s.id}">Verify</button>` : ''}
+                    <a href="/collections/sheets/${s.id}/print/" class="btn btn-sm btn-info" target="_blank">Print</a>
                  <\/td>
             </tr>`;
         });
         tableBody.innerHTML = html;
         attachActionHandlers();
+        attachVerifyButtons();
+    }
+
+    function attachVerifyButtons() {
+        document.querySelectorAll('.verify-sheet').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.id;
+                if (confirm('Are you sure you want to verify this collection sheet? This action cannot be undone.')) {
+                    fetch(`/collections/sheets/${id}/verify/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin'
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            loadSheets(currentPage);
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(err => alert('An error occurred.'));
+                }
+            });
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 
     function renderPagination(current, total) {

@@ -3,12 +3,18 @@
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h3>Journal Entries</h3>
-        <a href="{% url 'journalentry_add' %}" class="btn btn-success btn-sm">+ Add Entry</a>
+        <h5 class="mb-0">Journal Entries</h5>
+        <a class="btn btn-success btn-sm" href="{% url 'journalentry_add' %}">+ Add Journal Entry</a>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+    <div class="search-controls p-3">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text">Voucher No</span>
+            <input id="entry-search-voucher" type="search" class="form-control" placeholder="Search by voucher number">
+        </div>
+    </div>
+    <div class="card-body d-flex flex-column" style="min-height: 400px;">
+        <div class="table-responsive flex-fill">
+            <table class="table table-sm table-hover" id="entry-grid-table">
                 <thead>
                     <tr>
                         <th>Voucher No</th>
@@ -18,24 +24,254 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for entry in entries %}
-                    <tr>
-                        <td>{{ entry.voucher_no }}</td>
-                        <td>{{ entry.date }}</td>
-                        <td>{{ entry.description|truncatewords:10 }}</td>
-                        <td>{% if entry.is_posted %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning">No</span>{% endif %}</td>
-                        <td>
-                            <a href="{% url 'journalentry_edit' pk=entry.pk %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'journalentry_delete' pk=entry.pk %}" class="btn btn-sm btn-danger">Delete</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted">No entries found</td></tr>
-                    {% endfor %}
+                <tbody id="entry-grid-body">
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading entries...<\/td></tr>
                 </tbody>
             </table>
         </div>
+        <nav class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list"></ul>
+        </nav>
     </div>
 </div>
+
+<style> /* same as account_list */ </style>
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="entry-initial-json">{{ initial_data_json|safe }}</script>
+<script>
+    const tableBody = document.getElementById('entry-grid-body');
+    const paginationList = document.getElementById('pagination-list');
+    const searchVoucher = document.getElementById('entry-search-voucher');
+    const genericModal = document.getElementById('genericModal');
+    let currentPage = 1, totalPages = 1, searchTimer;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function renderTable(entries) {
+        if (!entries || entries.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No entries found.<\/td><\/tr>';
+            return;
+        }
+        let html = '';
+        entries.forEach(e => {
+            html += `<tr>
+                <td>${escapeHtml(e.voucher_no)}<\/td>
+                <td>${escapeHtml(e.date)}<\/td>
+                <td>${escapeHtml(e.description)}<\/td>
+                <td>${escapeHtml(e.is_posted)}<\/td>
+                <td>
+                    <a href="/accounting/entries/${e.id}/edit/" class="btn btn-sm btn-warning me-1 entry-edit-link">Edit</a>
+                    <a href="/accounting/entries/${e.id}/delete/" class="btn btn-sm btn-danger entry-delete-link">Delete</a>
+                    <button class="btn btn-sm btn-info reverse-entry" data-id="${e.id}">Reverse</button>
+                 <\/td>
+            </tr>`;
+        });
+        tableBody.innerHTML = html;
+        attachActionHandlers();
+        attachReverseButtons();
+    }
+
+    function attachReverseButtons() {
+        document.querySelectorAll('.reverse-entry').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (confirm('Create a reversal journal entry for this voucher? This will create a new entry.')) {
+                    const id = this.dataset.id;
+                    fetch(`/accounting/entries/${id}/reverse/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            loadEntries(currentPage);
+                        } else {
+                            alert('Error: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(err => alert('An error occurred.'));
+                }
+            });
+        });
+    }
+
+    function renderPagination(current, total) {
+        currentPage = current;
+        totalPages = total;
+        if (total <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+        let html = `<li class="page-item ${current === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${current-1}">Previous</a>
+                    </li>`;
+        let start = Math.max(1, current-2);
+        let end = Math.min(total, current+2);
+        if (end - start < 4) {
+            if (start > 1) start = Math.max(1, end-4);
+            if (end < total) end = Math.min(total, start+4);
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<li class="page-item ${i === current ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>`;
+        }
+        html += `<li class="page-item ${current === total ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${current+1}">Next</a>
+                </li>`;
+        paginationList.innerHTML = html;
+        paginationList.querySelectorAll('a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                let page = parseInt(this.dataset.page);
+                if (!isNaN(page) && page >= 1 && page <= totalPages && page !== currentPage) {
+                    loadEntries(page);
+                }
+            });
+        });
+    }
+
+    function loadEntries(page = 1) {
+        const params = new URLSearchParams({
+            voucher_no: searchVoucher.value.trim(),
+            page: page,
+            size: 20
+        });
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading...<\/td><\/tr>';
+        fetch(`{% url 'journalentry_data' %}?${params.toString()}`, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                renderTable(data.data || []);
+                renderPagination(data.current_page || 1, data.last_page || 1);
+            })
+            .catch(err => {
+                console.error(err);
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Unable to load entries.<\/td><\/tr>';
+                paginationList.innerHTML = '';
+            });
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadEntries(1), 300);
+    }
+
+    function openModal(title, url) {
+        if (!genericModal) {
+            window.location.href = url;
+            return;
+        }
+        const modalTitle = genericModal.querySelector('.modal-title');
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(genericModal);
+        modalTitle.textContent = title;
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+        modal.show();
+        fetch(url, { credentials: 'same-origin' })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || html);
+            })
+            .catch(err => {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to load content.</div>';
+            });
+    }
+
+    function attachActionHandlers() {
+        document.querySelectorAll('.entry-edit-link, .entry-delete-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const title = this.classList.contains('entry-delete-link') ? 'Delete Journal Entry' : 'Edit Journal Entry';
+                openModal(title, this.href);
+            });
+        });
+    }
+
+    function handleModalSubmit(event) {
+        const form = event.target.closest('form');
+        if (!form || !genericModal || !genericModal.contains(form)) return;
+        event.preventDefault();
+        const modalBody = genericModal.querySelector('.modal-body');
+        const modal = bootstrap.Modal.getInstance(genericModal);
+        const submitUrl = form.action;
+        const formData = new FormData(form);
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text().then(text => ({ status: response.status, redirected: response.redirected, text: text })))
+        .then(result => {
+            if (result.redirected) {
+                if (modal) modal.hide();
+                loadEntries(currentPage);
+                return;
+            }
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(result.text, 'text/html');
+            const pageContent = doc.querySelector('.container-fluid > .row > .col-12');
+            const hasForm = !!doc.querySelector('form');
+            if (result.status === 200 && hasForm) {
+                modalBody.innerHTML = pageContent ? pageContent.innerHTML : (doc.body.innerHTML || result.text);
+            } else if (result.status >= 200 && result.status < 300) {
+                if (modal) modal.hide();
+                loadEntries(currentPage);
+            } else {
+                modalBody.innerHTML = '<div class="alert alert-danger">Unable to save changes.</div>';
+            }
+        })
+        .catch(err => {
+            modalBody.innerHTML = '<div class="alert alert-danger">An error occurred.</div>';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        searchVoucher.addEventListener('input', handleSearch);
+        if (genericModal) genericModal.addEventListener('submit', handleModalSubmit);
+        try {
+            const initial = JSON.parse(document.getElementById('entry-initial-json').textContent || 'null');
+            if (initial && Array.isArray(initial.data)) {
+                renderTable(initial.data);
+                renderPagination(initial.current_page || 1, initial.last_page || 1);
+            } else {
+                loadEntries(1);
+            }
+        } catch(e) {
+            loadEntries(1);
+        }
+    });
+</script>
 {% endblock %}

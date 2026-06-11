@@ -6,10 +6,10 @@
     <div class="col-12 col-lg-8" style="display: flex; flex-direction: column;">
         <div class="card mb-4" style="flex: 1; margin-bottom: 0 !important;">
             <div class="card-header">
-                <h2 class="mb-0">Add Collection Entry</h2>
+                <h2 class="mb-0">{% if object %}Edit Collection Entry{% else %}Add Collection Entry{% endif %}</h2>
             </div>
             <div class="card-body">
-                <form method="post" action="{% url 'collections_entry_add' %}">
+                <form method="post" action="{% if object %}{% url 'collections_entry_edit' pk=object.pk %}{% else %}{% url 'collections_entry_add' %}{% endif %}">
                     {% csrf_token %}
                     {{ form|crispy }}
                     <div class="mt-3 d-flex gap-2 flex-wrap">
@@ -56,6 +56,19 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Sheet select
+        var sheetSelect = document.querySelector('select[name="sheet"]');
+        if (window.jQuery && window.jQuery.fn.select2 && sheetSelect) {
+            window.jQuery(sheetSelect).select2({
+                width: '100%',
+                theme: 'bootstrap-5',
+                placeholder: 'Select a collection sheet',
+                minimumResultsForSearch: 0,
+                dropdownAutoWidth: true,
+                allowClear: false
+            });
+        }
+
         // Member select
         var memberSelect = document.querySelector('select[name="member"]');
         if (window.jQuery && window.jQuery.fn.select2 && memberSelect) {
@@ -67,10 +80,9 @@
                 dropdownAutoWidth: true,
                 allowClear: false
             });
-            memberSelect.dataset.select2Initialized = 'true';
         }
 
-        // Collection type change handler to show/hide conditional fields
+        // Collection type change handler
         var typeSelect = document.querySelector('select[name="collection_type"]');
         var loanInstallmentGroup = document.querySelector('.field-loan_installment');
         var savingsAccountGroup = document.querySelector('.field-savings_account');
@@ -118,19 +130,6 @@
                 minimumResultsForSearch: 0,
                 dropdownAutoWidth: true,
                 allowClear: true
-            });
-        }
-
-        // Sheet select (if exists)
-        var sheetSelect = document.querySelector('select[name="sheet"]');
-        if (window.jQuery && window.jQuery.fn.select2 && sheetSelect) {
-            window.jQuery(sheetSelect).select2({
-                width: '100%',
-                theme: 'bootstrap-5',
-                placeholder: 'Select a collection sheet',
-                minimumResultsForSearch: 0,
-                dropdownAutoWidth: true,
-                allowClear: false
             });
         }
     });

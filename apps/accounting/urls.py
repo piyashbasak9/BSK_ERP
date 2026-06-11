@@ -9,7 +9,7 @@ urlpatterns = [
     path('accounts/<int:pk>/edit/', views.AccountUpdateView.as_view(), name='account_edit'),
     path('accounts/<int:pk>/delete/', views.AccountDeleteView.as_view(), name='account_delete'),
     path('accounts/<int:pk>/json/', views.AccountDetailJsonView.as_view(), name='account_detail_json'),
-    
+
     # Journal Entries
     path('entries/', views.JournalEntryListView.as_view(), name='journalentry_list'),
     path('entries/data/', views.JournalEntryGridDataView.as_view(), name='journalentry_data'),
@@ -17,4 +17,5 @@ urlpatterns = [
     path('entries/<int:pk>/edit/', views.JournalEntryUpdateView.as_view(), name='journalentry_edit'),
     path('entries/<int:pk>/delete/', views.JournalEntryDeleteView.as_view(), name='journalentry_delete'),
     path('entries/<int:pk>/json/', views.JournalEntryDetailJsonView.as_view(), name='journalentry_detail_json'),
+    path('entries/<int:pk>/reverse/', views.JournalEntryReverseView.as_view(), name='journalentry_reverse'),
 ]
