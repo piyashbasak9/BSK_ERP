@@ -1,30 +1,21 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h2>Reports</h2>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for report in reports %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">{{ report.name }}</h5>
-                                <p class="card-text text-muted">{{ report.description }}</p>
-                            </div>
-                            <div class="card-footer">
-                                <a href="{% url report.url %}" class="btn btn-sm btn-primary">View Report</a>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+<div class="container py-4">
+    <h2 class="mb-4">Reports Dashboard</h2>
+    <div class="row">
+        {% for report in reports %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">{{ report.name }}</h5>
+                    <p class="card-text text-muted">{{ report.description }}</p>
+                    <a href="{% url report.url %}" class="btn btn-primary">View Report</a>
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
+<style>.container{flex:1;}</style>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Collection Summary Report</h2>
+        <div>
+            <a href="{% url 'report_export' report_type='collection_summary' %}?{{ request.GET.urlencode }}" class="btn btn-success me-2">Export CSV</a>
+            <a href="{% url 'report_list' %}" class="btn btn-secondary">Back to Reports</a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Filters</div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date Range</label>
+                    {{ form.date_range }}
+                </div>
+                <div class="col-md-3" id="start_date_div" style="display:none;">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date|default:'' }}">
+                </div>
+                <div class="col-md-3" id="end_date_div" style="display:none;">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Branch</label>
+                    {{ form.branch }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="{% url 'report_collection_summary' %}" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4"><div class="card text-white bg-primary"><div class="card-body"><h6>Total Sheets</h6><h3>{{ total_sheets }}</h3></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-success"><div class="card-body"><h6>Total Cash</h6><h3>৳ {{ total_cash|floatformat:2 }}</h3></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-info"><div class="card-body"><h6>Verified Sheets</h6><h3>{{ verified_sheets }}</h3></div></div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h5>Collections by Type</h5></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Type</th><th>Entries</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for item in collections_by_type %}
+                        <tr><td>{{ item.collection_type|title }}</td><td>{{ item.count }}</td><td>৳ {{ item.total|floatformat:2 }}</td></tr>
+                        {% empty %}<tr><td colspan="3">No data</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const range = document.getElementById('id_date_range');
+    const startDiv = document.getElementById('start_date_div');
+    const endDiv = document.getElementById('end_date_div');
+    function toggleCustom() {
+        const isCustom = range && range.value === 'custom';
+        if (startDiv) startDiv.style.display = isCustom ? 'block' : 'none';
+        if (endDiv) endDiv.style.display = isCustom ? 'block' : 'none';
+    }
+    if (range) {
+        range.addEventListener('change', toggleCustom);
+        toggleCustom();
+    }
+</script>
+{% endblock %}

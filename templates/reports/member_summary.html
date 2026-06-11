@@ -1,32 +1,53 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Member Summary Report</h2>
+        <div>
+            <a href="{% url 'report_export' report_type='member_summary' %}?{{ request.GET.urlencode }}" class="btn btn-success me-2">Export CSV</a>
+            <a href="{% url 'report_list' %}" class="btn btn-secondary">Back to Reports</a>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="alert alert-info">
-                    <strong>Total Members:</strong><br>
-                    <h3>{{ context.total_members }}</h3>
+
+    <div class="card mb-4">
+        <div class="card-header">Filters</div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Branch</label>
+                    {{ form.branch }}
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="alert alert-success">
-                    <strong>Active Members:</strong><br>
-                    <h3>{{ context.active_members }}</h3>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Apply</button>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="alert alert-warning">
-                    <strong>Inactive Members:</strong><br>
-                    <h3>{{ context.inactive_members }}</h3>
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="{% url 'report_member_summary' %}" class="btn btn-secondary">Clear</a>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4"><div class="card text-white bg-primary"><div class="card-body"><h5>Total Members</h5><h2>{{ total_members }}</h2></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-success"><div class="card-body"><h5>Active Members</h5><h2>{{ active_members }}</h2></div></div></div>
+        <div class="col-md-4"><div class="card text-white bg-secondary"><div class="card-body"><h5>Inactive Members</h5><h2>{{ inactive_members }}</h2></div></div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h5>Members by Branch</h5></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Branch</th><th>Count</th></tr></thead>
+                    <tbody>
+                        {% for item in members_by_branch %}
+                        <tr><td>{{ item.branch__name|default:"No Branch" }}</td><td>{{ item.count }}</td></tr>
+                        {% empty %}<tr><td colspan="2">No data</td></tr>{% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-        <a href="{% url 'report_list' %}" class="btn btn-secondary">Back to Reports</a>
     </div>
 </div>
 {% endblock %}

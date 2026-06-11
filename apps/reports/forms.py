@@ -1,10 +1,11 @@
 from django import forms
+from apps.branches.models import Branch
 
 
 class ReportFilterForm(forms.Form):
     """Form for filtering reports"""
     
-    START_DATE_CHOICES = [
+    DATE_RANGE_CHOICES = [
         ('today', 'Today'),
         ('this_week', 'This Week'),
         ('this_month', 'This Month'),
@@ -24,8 +25,9 @@ class ReportFilterForm(forms.Form):
     )
     
     date_range = forms.ChoiceField(
-        choices=START_DATE_CHOICES,
-        widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
+        choices=DATE_RANGE_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
     
     start_date = forms.DateField(
@@ -38,7 +40,9 @@ class ReportFilterForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
     
-    branch = forms.MultipleChoiceField(
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.all(),
         required=False,
-        widget=forms.CheckboxSelectMultiple()
+        empty_label="All Branches",
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
