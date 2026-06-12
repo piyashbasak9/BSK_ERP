@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8"><div class="card"><div class="card-header"><h2>Audit Settings</h2></div><div class="card-body"><form method="post">{% csrf_token %}
+    <div class="mb-3"><label class="form-check-label"><input type="checkbox" name="log_logins" {% if audit_settings.log_logins %}checked{% endif %} class="form-check-input"> Log user logins</label></div>
+    <div class="mb-3"><label class="form-check-label"><input type="checkbox" name="log_data_changes" {% if audit_settings.log_data_changes %}checked{% endif %} class="form-check-input"> Log data changes (create/update)</label></div>
+    <div class="mb-3"><label class="form-check-label"><input type="checkbox" name="log_deletions" {% if audit_settings.log_deletions %}checked{% endif %} class="form-check-input"> Log deletions</label></div>
+    <div class="mb-3"><label class="form-label">Retention period (days)</label><input type="number" name="retention_days" value="{{ audit_settings.retention_days }}" class="form-control"></div>
+    <button type="submit" class="btn btn-success">Save Audit Settings</button> <a href="{% url 'settings_dashboard' %}" class="btn btn-secondary">Back</a>
+</form></div></div></div></div>
+{% endblock %}

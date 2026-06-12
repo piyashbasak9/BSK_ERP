@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">System Activity Dashboard</h2>
+    <div class="row mb-4">
+        <div class="col-md-3"><div class="card text-white bg-primary"><div class="card-body"><h5>Today's Logins</h5><h2>{{ today_logins }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card text-white bg-success"><div class="card-body"><h5>Data Changes</h5><h2>{{ today_data_changes }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card text-white bg-danger"><div class="card-body"><h5>Deletions</h5><h2>{{ today_deletions }}</h2></div></div></div>
+        <div class="col-md-3"><div class="card text-white bg-info"><div class="card-body"><h5>Active Sessions</h5><h2>{{ active_sessions }}</h2></div></div></div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Activity (Last 7 Days)</div>
+        <div class="card-body">
+            <canvas id="activityChart" height="100"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Recent Activities</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Resource</th><th>Resource ID</th></tr></thead>
+                    <tbody>
+                        {% for act in recent_activities %}
+                        <tr>
+                            <td>{{ act.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ act.username }}</td>
+                            <td>{{ act.action }}</td>
+                            <td>{{ act.resource }}</td>
+                            <td>{{ act.resource_id }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5">No recent activity</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Safely parse the JSON data
+    let chartData;
+    try {
+        chartData = JSON.parse('{{ chart_data|escapejs }}');
+    } catch(e) {
+        chartData = [];
+    }
+    const ctx = document.getElementById('activityChart').getContext('2d');
+    if (chartData && chartData.length > 0) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.map(d => d.date),
+                datasets: [{
+                    label: 'Actions per day',
+                    data: chartData.map(d => d.count),
+                    borderColor: '#0d6efd',
+                    fill: false
+                }]
+            }
+        });
+    } else {
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '14px Arial';
+        ctx.fillText('No data available for the last 7 days', 20, 50);
+    }
+</script>
+<style>.container{flex:1;}</style>
+{% endblock %}

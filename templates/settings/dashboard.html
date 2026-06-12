@@ -1,20 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>System Settings</h2>
-    </div>
-    <div class="card-body">
-        <div class="alert alert-info">
-            <p>System settings management is available. This section allows superusers to configure system-wide settings.</p>
-        </div>
-        <div class="list-group">
-            <a href="{% url 'system_settings' %}" class="list-group-item list-group-item-action">General Settings</a>
-            <a href="{% url 'user_management' %}" class="list-group-item list-group-item-action">User Management</a>
-            <a href="{% url 'branch_management' %}" class="list-group-item list-group-item-action">Branch Configuration</a>
-            <a href="{% url 'backup_restore' %}" class="list-group-item list-group-item-action">Backup & Restore</a>
-        </div>
+<div class="container py-4">
+    <h2 class="mb-4">System Settings Dashboard</h2>
+    <div class="row">
+        <div class="col-md-4 mb-4"><div class="card h-100 shadow-sm"><div class="card-body"><h5>System Settings</h5><p>Organization, financial year, defaults</p><a href="{% url 'system_settings' %}" class="btn btn-primary">Configure</a></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card h-100 shadow-sm"><div class="card-body"><h5>User Management</h5><p>Manage system users and permissions</p><a href="{% url 'user_management' %}" class="btn btn-primary">Manage</a></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card h-100 shadow-sm"><div class="card-body"><h5>Branch Management</h5><p>Add, edit, remove branches</p><a href="{% url 'branch_management' %}" class="btn btn-primary">Manage</a></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card h-100 shadow-sm"><div class="card-body"><h5>Backup & Restore</h5><p>Backup database and restore</p><a href="{% url 'backup_restore' %}" class="btn btn-primary">Configure</a></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card h-100 shadow-sm"><div class="card-body"><h5>Audit Settings</h5><p>Configure audit logging behaviour</p><a href="{% url 'audit_settings' %}" class="btn btn-primary">Configure</a></div></div></div>
     </div>
 </div>
+<style>.container{flex:1;}.card{transition:transform 0.2s;}.card:hover{transform:translateY(-5px);}</style>
 {% endblock %}

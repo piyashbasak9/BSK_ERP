@@ -1,19 +1,19 @@
 import json
+import csv
 from django.views.generic import TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.db.models import Q, Count
 from django.core.paginator import Paginator
+from .models import AuditLog
 from .forms import AuditLogFilterForm
 from erp.utils.tabulator import TabulatorGrid
 
 
 class SuperUserRequiredMixin(UserPassesTestMixin):
-    """Mixin to require superuser status"""
-    
     def test_func(self):
         return self.request.user.is_superuser
-    
     def handle_no_permission(self):
         from django.contrib import messages
         messages.error(self.request, 'You do not have permission to view audit logs.')
@@ -21,9 +21,8 @@ class SuperUserRequiredMixin(UserPassesTestMixin):
 
 
 class AuditLogListView(LoginRequiredMixin, SuperUserRequiredMixin, TemplateView):
-    """List audit logs with filtering"""
     template_name = 'audit/log_list.html'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['columns'] = [
@@ -34,134 +33,103 @@ class AuditLogListView(LoginRequiredMixin, SuperUserRequiredMixin, TemplateView)
             {"title": "IP Address", "field": "ip_address", "width": 120},
         ]
         context['columns_json'] = json.dumps(context['columns'])
-        
-        # Get audit logs (placeholder - would come from middleware/logging system)
-        logs = self.get_audit_logs()
-        
-        paginator = Paginator(logs, 20)
-        page_obj = paginator.get_page(1)
-        
-        initial_list = [
-            {
-                'id': i,
-                'timestamp': log.get('timestamp', ''),
-                'user': log.get('user', ''),
-                'action': log.get('action', ''),
-                'resource': log.get('resource', ''),
-                'ip_address': log.get('ip_address', ''),
-            }
-            for i, log in enumerate(page_obj.object_list)
-        ]
-        
-        context['initial_logs'] = initial_list
-        context['initial_data_json'] = json.dumps({
-            'last_page': paginator.num_pages,
-            'data': initial_list,
-            'current_page': 1,
-        }, default=str)
-        
         context['filter_form'] = AuditLogFilterForm(self.request.GET)
         return context
-    
-    def get_audit_logs(self):
-        """Get audit logs from the system"""
-        # This would normally query a database or log file
-        # For now, return empty list as placeholder
-        return []
 
 
 class AuditLogGridDataView(LoginRequiredMixin, SuperUserRequiredMixin, View):
-    """AJAX endpoint for audit log data"""
-    
     def get(self, request):
-        # Get audit logs with filtering
-        logs = self.get_filtered_logs(request)
-        
-        # Apply pagination
-        page = request.GET.get('page', 1)
-        paginator = Paginator(logs, 20)
-        page_obj = paginator.get_page(page)
-        
-        data = [
-            {
-                'id': i,
-                'timestamp': log.get('timestamp', ''),
-                'user': log.get('user', ''),
-                'action': log.get('action', ''),
-                'resource': log.get('resource', ''),
-                'ip_address': log.get('ip_address', ''),
-            }
-            for i, log in enumerate(page_obj.object_list)
-        ]
-        
-        return JsonResponse({
-            'last_page': paginator.num_pages,
-            'data': data,
-            'current_page': int(page),
-        })
-    
-    def get_filtered_logs(self, request):
-        """Get and filter audit logs"""
-        # This would normally query a database
-        return []
+        queryset = self.get_filtered_queryset(request)
+        grid = TabulatorGrid(request.GET, queryset, search_fields=['username', 'resource'])
+        resp = grid.get_response()
+        for item in resp.get('data', []):
+            item['timestamp'] = item['timestamp'].strftime('%Y-%m-%d %H:%M:%S') if item.get('timestamp') else ''
+        return JsonResponse(resp)
+
+    def get_filtered_queryset(self, request):
+        qs = AuditLog.objects.all()
+        form = AuditLogFilterForm(request.GET)
+        if form.is_valid():
+            log_types = form.cleaned_data.get('log_type')
+            if log_types:
+                qs = qs.filter(action__in=log_types)
+            username = form.cleaned_data.get('user')
+            if username:
+                qs = qs.filter(username__icontains=username)
+            start_date = form.cleaned_data.get('start_date')
+            end_date = form.cleaned_data.get('end_date')
+            if start_date:
+                qs = qs.filter(timestamp__date__gte=start_date)
+            if end_date:
+                qs = qs.filter(timestamp__date__lte=end_date)
+        return qs
 
 
 class AuditLogDetailView(LoginRequiredMixin, SuperUserRequiredMixin, View):
-    """View detailed audit log entry"""
-    
     def get(self, request, log_id):
-        # Get specific log entry
-        log_entry = {
-            'id': log_id,
-            'timestamp': timezone.now().isoformat(),
-            'user': 'admin',
-            'action': 'update',
-            'resource': 'Member',
-            'resource_id': 1,
-            'old_values': {'name': 'Old Name'},
-            'new_values': {'name': 'New Name'},
-            'ip_address': '192.168.1.1',
-            'user_agent': 'Mozilla/5.0...',
-        }
-        
-        return JsonResponse(log_entry)
+        try:
+            log = AuditLog.objects.get(pk=log_id)
+            return JsonResponse({
+                'id': log.id,
+                'timestamp': log.timestamp.isoformat(),
+                'user': log.username,
+                'action': log.action,
+                'resource': log.resource,
+                'resource_id': log.resource_id,
+                'old_values': log.old_values,
+                'new_values': log.new_values,
+                'ip_address': log.ip_address,
+                'user_agent': log.user_agent,
+            })
+        except AuditLog.DoesNotExist:
+            return JsonResponse({'error': 'Log not found'}, status=404)
 
 
 class AuditLogExportView(LoginRequiredMixin, SuperUserRequiredMixin, View):
-    """Export audit logs"""
-    
     def get(self, request):
-        # Export logs in CSV or Excel format
-        return JsonResponse({'error': 'Not implemented'}, status=501)
+        qs = AuditLogGridDataView().get_filtered_queryset(request)
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="audit_logs.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Timestamp', 'User', 'Action', 'Resource', 'Resource ID', 'IP Address', 'Old Values', 'New Values'])
+        for log in qs.iterator():
+            writer.writerow([
+                log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                log.username,
+                log.action,
+                log.resource,
+                log.resource_id,
+                log.ip_address,
+                json.dumps(log.old_values),
+                json.dumps(log.new_values),
+            ])
+        return response
 
 
 class SystemActivityDashboardView(LoginRequiredMixin, SuperUserRequiredMixin, TemplateView):
-    """System activity dashboard"""
     template_name = 'audit/activity_dashboard.html'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Get statistics
-        context['today_logins'] = 15  # Placeholder
-        context['today_data_changes'] = 42  # Placeholder
-        context['today_deletions'] = 2  # Placeholder
-        context['active_sessions'] = 8  # Placeholder
-        
+        today = timezone.now().date()
+        today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+        today_end = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.max.time()))
+
+        context['today_logins'] = AuditLog.objects.filter(action='login', timestamp__range=(today_start, today_end)).count()
+        context['today_data_changes'] = AuditLog.objects.filter(action__in=['create', 'update'], timestamp__range=(today_start, today_end)).count()
+        context['today_deletions'] = AuditLog.objects.filter(action='delete', timestamp__range=(today_start, today_end)).count()
+        context['active_sessions'] = 0  # would require session tracking, optional
+
+        # Chart data: last 7 days activity counts
+        last_7_days = []
+        for i in range(6, -1, -1):
+            day = today - timezone.timedelta(days=i)
+            day_start = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.min.time()))
+            day_end = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.max.time()))
+            count = AuditLog.objects.filter(timestamp__range=(day_start, day_end)).count()
+            last_7_days.append({'date': day.strftime('%Y-%m-%d'), 'count': count})
+        context['chart_data'] = json.dumps(last_7_days)
+
         # Recent activities
-        context['recent_activities'] = [
-            {
-                'timestamp': timezone.now().isoformat(),
-                'user': 'admin',
-                'action': 'Created member',
-                'resource': 'Member #123',
-            },
-            {
-                'timestamp': timezone.now().isoformat(),
-                'user': 'user1',
-                'action': 'Updated loan',
-                'resource': 'Loan #456',
-            },
-        ]
-        
+        context['recent_activities'] = AuditLog.objects.order_by('-timestamp')[:20].values('timestamp', 'username', 'action', 'resource', 'resource_id')
         return context

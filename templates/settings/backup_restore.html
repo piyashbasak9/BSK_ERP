@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8"><div class="card mb-4"><div class="card-header"><h2>Backup & Restore</h2></div><div class="card-body">
+    <form method="post" action="{% url 'backup_restore' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="backup">
+        <button type="submit" class="btn btn-primary">Download Database Backup</button>
+    </form>
+    <hr>
+    <h5>Restore Backup</h5>
+    <form method="post" action="{% url 'backup_restore' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="restore">
+        <div class="mb-3"><label class="form-label">Select backup file (.json)</label><input type="file" name="backup_file" class="form-control" accept=".json" required></div>
+        <button type="submit" class="btn btn-warning">Restore</button>
+        <div class="alert alert-info mt-3">⚠️ Restore will overwrite current data. Use with caution.</div>
+    </form>
+</div></div></div></div>
+{% endblock %}

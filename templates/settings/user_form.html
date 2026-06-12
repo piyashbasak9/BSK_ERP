@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8"><div class="card"><div class="card-header"><h2>{% if object %}Edit User{% else %}Add User{% endif %}</h2></div><div class="card-body"><form method="post">{% csrf_token %}{{ form|crispy }}{% if not object %}<div class="alert alert-info">Password will be set as provided – use a secure value.</div>{% endif %}<button type="submit" class="btn btn-success">Save</button> <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a></form></div></div></div></div>
+{% endblock %}

@@ -41,6 +41,7 @@ MIDDLEWARE = [
     'erp.utils.middleware.BranchIsolationMiddleware',
     'erp.utils.middleware.RBACMiddleware',
     'erp.utils.middleware.AuditMiddleware',
+    'apps.audit.middleware.AuditMiddleware',
 ]
 
 ROOT_URLCONF = 'erp.urls'
