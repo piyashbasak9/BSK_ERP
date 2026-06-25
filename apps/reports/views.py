@@ -51,10 +51,10 @@ class ReportDataMixin:
     def get_branch_filter(self, request):
         branch_id = request.GET.get('branch')
         if request.user.is_superuser and branch_id:
-            return Q(branch_id=branch_id)
-        elif request.user.branch:
-            return Q(branch=request.user.branch)
-        return Q()
+            return Branch.objects.filter(id=branch_id).first()
+        elif getattr(request.user, 'branch', None):
+            return request.user.branch
+        return None
     
     def get_branch_name_for_export(self, request):
         branch_id = request.GET.get('branch')
@@ -75,7 +75,7 @@ class MemberSummaryReportView(LoginRequiredMixin, PermissionRequiredMixin, Templ
         qs = Member.objects.filter(is_deleted=False)
         branch_filter = self.get_branch_filter(self.request)
         if branch_filter:
-            qs = qs.filter(branch_filter)
+            qs = qs.filter(branch=branch_filter)
         
         context['total_members'] = qs.count()
         context['active_members'] = qs.filter(is_active=True).count()
@@ -94,7 +94,7 @@ class LoanSummaryReportView(LoginRequiredMixin, PermissionRequiredMixin, Templat
         qs = LoanApplication.objects.all()
         branch_filter = self.get_branch_filter(self.request)
         if branch_filter:
-            qs = qs.filter(member__branch__in=[branch_filter])
+            qs = qs.filter(member__branch=branch_filter)
         
         context['total_loans'] = qs.count()
         context['pending_loans'] = qs.filter(status='pending').count()
@@ -117,7 +117,7 @@ class SavingsSummaryReportView(LoginRequiredMixin, PermissionRequiredMixin, Temp
         qs = SavingsAccount.objects.filter(is_deleted=False)
         branch_filter = self.get_branch_filter(self.request)
         if branch_filter:
-            qs = qs.filter(member__branch__in=[branch_filter])
+            qs = qs.filter(member__branch=branch_filter)
         
         context['total_accounts'] = qs.count()
         context['active_accounts'] = qs.filter(is_active=True).count()
@@ -146,7 +146,7 @@ class CollectionSummaryReportView(LoginRequiredMixin, PermissionRequiredMixin, T
         
         sheet_qs = DailyCollectionSheet.objects.filter(date__range=[start_date, end_date])
         if branch_filter:
-            sheet_qs = sheet_qs.filter(branch__in=[branch_filter])
+            sheet_qs = sheet_qs.filter(branch=branch_filter)
         
         context['start_date'] = start_date
         context['end_date'] = end_date
@@ -156,7 +156,7 @@ class CollectionSummaryReportView(LoginRequiredMixin, PermissionRequiredMixin, T
         
         entry_qs = CollectionEntry.objects.filter(sheet__date__range=[start_date, end_date])
         if branch_filter:
-            entry_qs = entry_qs.filter(sheet__branch__in=[branch_filter])
+            entry_qs = entry_qs.filter(sheet__branch=branch_filter)
         context['collections_by_type'] = entry_qs.values('collection_type').annotate(
             count=Count('id'),
             total=Sum('amount')
@@ -182,7 +182,7 @@ class AccountBalanceReportView(LoginRequiredMixin, PermissionRequiredMixin, Temp
         branch_filter = self.get_branch_filter(self.request)
         accounts = Account.objects.filter(is_active=True)
         if branch_filter:
-            accounts = accounts.filter(Q(branch__in=[branch_filter]) | Q(branch__isnull=True))
+            accounts = accounts.filter(Q(branch=branch_filter) | Q(branch__isnull=True))
         
         account_list = []
         total_debit = 0
@@ -230,7 +230,7 @@ class ReportExportView(LoginRequiredMixin, PermissionRequiredMixin, View, Report
         qs = Member.objects.filter(is_deleted=False)
         branch_filter = self.get_branch_filter(request)
         if branch_filter:
-            qs = qs.filter(branch_filter)
+            qs = qs.filter(branch=branch_filter)
         
         response = HttpResponse(content_type='text/csv')
         branch_name = self.get_branch_name_for_export(request)
@@ -245,7 +245,7 @@ class ReportExportView(LoginRequiredMixin, PermissionRequiredMixin, View, Report
         qs = LoanApplication.objects.select_related('member')
         branch_filter = self.get_branch_filter(request)
         if branch_filter:
-            qs = qs.filter(member__branch__in=[branch_filter])
+            qs = qs.filter(member__branch=branch_filter)
         
         response = HttpResponse(content_type='text/csv')
         branch_name = self.get_branch_name_for_export(request)
@@ -260,7 +260,7 @@ class ReportExportView(LoginRequiredMixin, PermissionRequiredMixin, View, Report
         qs = SavingsAccount.objects.filter(is_deleted=False).select_related('member', 'product')
         branch_filter = self.get_branch_filter(request)
         if branch_filter:
-            qs = qs.filter(member__branch__in=[branch_filter])
+            qs = qs.filter(member__branch=branch_filter)
         
         response = HttpResponse(content_type='text/csv')
         branch_name = self.get_branch_name_for_export(request)
@@ -280,7 +280,7 @@ class ReportExportView(LoginRequiredMixin, PermissionRequiredMixin, View, Report
         branch_filter = self.get_branch_filter(request)
         entry_qs = CollectionEntry.objects.filter(sheet__date__range=[start_date, end_date]).select_related('sheet', 'member')
         if branch_filter:
-            entry_qs = entry_qs.filter(sheet__branch__in=[branch_filter])
+            entry_qs = entry_qs.filter(sheet__branch=branch_filter)
         
         response = HttpResponse(content_type='text/csv')
         branch_name = self.get_branch_name_for_export(request)
@@ -301,7 +301,7 @@ class ReportExportView(LoginRequiredMixin, PermissionRequiredMixin, View, Report
         branch_filter = self.get_branch_filter(request)
         accounts = Account.objects.filter(is_active=True)
         if branch_filter:
-            accounts = accounts.filter(Q(branch__in=[branch_filter]) | Q(branch__isnull=True))
+            accounts = accounts.filter(Q(branch=branch_filter) | Q(branch__isnull=True))
         
         response = HttpResponse(content_type='text/csv')
         branch_name = self.get_branch_name_for_export(request)
