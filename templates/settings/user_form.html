@@ -48,7 +48,9 @@
                                             <td class="text-center">
                                                 {% with selected=form.allowed_urls.value %}
                                                     <input type="checkbox" name="{{ form.allowed_urls.name }}" value="{{ url.pk }}" class="form-check-input"
-                                                        {% if selected and url.pk|stringformat:'s' in selected %}checked{% endif %} />
+                                                        {% if selected %}
+                                                            {% if url.pk|stringformat:'s' in selected %}checked{% elif url.pk in selected %}checked{% endif %}
+                                                        {% endif %} />
                                                 {% endwith %}
                                             </td>
                                         </tr>
@@ -58,6 +60,20 @@
                                 </tbody>
                             </table>
                         </div>
+                        {% if object %}
+                            <div class="mt-3">
+                                <h6>Currently allowed URLs</h6>
+                                {% if object.allowed_urls.exists %}
+                                    <ul class="small mb-0">
+                                        {% for url in object.allowed_urls.all %}
+                                            <li>{{ url.name }} (<code>{{ url.url_name }}</code>)</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-muted mb-0">This user has no URL access assigned yet.</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </div>
 
                     {% if not object %}

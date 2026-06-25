@@ -40,7 +40,15 @@ class User(AbstractUser):
         return f"{self.username} ({self.get_role_display()})"
 
     def get_allowed_url_names(self):
-        return set(self.allowed_urls.values_list('url_name', flat=True))
+        if hasattr(self, '_allowed_url_names_cache') and self._allowed_url_names_cache is not None:
+            return self._allowed_url_names_cache
+        names = set(self.allowed_urls.values_list('url_name', flat=True))
+        try:
+            # cache on instance for the duration of the request
+            self._allowed_url_names_cache = names
+        except Exception:
+            pass
+        return names
 
     def can_access_url(self, url_name):
         if self.is_superuser:

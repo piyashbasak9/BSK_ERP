@@ -103,7 +103,7 @@
 
     function renderTable(entries) {
         if (!entries || entries.length === 0) {
-            tableBody.innerHTML = '<td><td colspan="5" class="text-center text-muted py-3">No collection entries found.<\/td><\/tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No collection entries found.<\/td><\/tr>';
             return;
         }
         let html = '';

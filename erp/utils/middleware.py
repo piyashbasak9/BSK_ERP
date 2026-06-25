@@ -1,11 +1,12 @@
 import threading
 from django.utils.deprecation import MiddlewareMixin
 from django.shortcuts import redirect
-from django.urls import resolve
+from django.urls import resolve, Resolver404
 from apps.authentication.models import AllowedUrl
 import json
 
 _thread_locals = threading.local()
+_ALLOWED_URL_NAMES = None
 
 def get_current_user():
     return getattr(_thread_locals, 'user', None)
@@ -26,8 +27,13 @@ class RBACMiddleware(MiddlewareMixin):
             return None
         if request.user.is_superuser:
             return None
-        resolver = resolve(request.path_info)
-        url_name = resolver.url_name
+        try:
+            resolver = resolve(request.path_info)
+            url_name = resolver.url_name
+        except Resolver404:
+            return None
+        if not url_name:
+            return None
         if url_name in {'dashboard', 'access_denied', 'logout'}:
             return None
         # Map URL names to required permissions (simplified example)
@@ -51,7 +57,15 @@ class RBACMiddleware(MiddlewareMixin):
             if not request.user.has_perm(perm_map[url_name]):
                 return redirect('access_denied')
 
-        if url_name in AllowedUrl.objects.values_list('url_name', flat=True):
+        # If this URL is managed via AllowedUrl entries, check per-user access.
+        global _ALLOWED_URL_NAMES
+        if _ALLOWED_URL_NAMES is None:
+            try:
+                _ALLOWED_URL_NAMES = set(AllowedUrl.objects.values_list('url_name', flat=True))
+            except Exception:
+                _ALLOWED_URL_NAMES = set()
+
+        if url_name in _ALLOWED_URL_NAMES:
             if not request.user.can_access_url(url_name):
                 return redirect('access_denied')
         return None

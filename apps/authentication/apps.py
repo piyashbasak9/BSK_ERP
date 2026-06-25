@@ -33,6 +33,12 @@ class AuthenticationConfig(AppConfig):
                 allowed_url.name = defaults['name']
                 allowed_url.path = defaults['path']
                 allowed_url.save(update_fields=['name', 'path'])
+        # Refresh middleware cache of allowed url names (if middleware module is loaded)
+        try:
+            from erp.utils import middleware
+            middleware._ALLOWED_URL_NAMES = set(AllowedUrl.objects.values_list('url_name', flat=True))
+        except Exception:
+            pass
 
     def _collect_named_urls(self, patterns):
         result = []

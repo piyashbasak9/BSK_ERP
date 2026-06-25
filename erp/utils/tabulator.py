@@ -32,5 +32,5 @@ class TabulatorGrid:
         return {
             'last_page': paginator.num_pages,
             'data': data,
-            'current_page': self.page,
+            'current_page': page_obj.number,
         }

@@ -15,7 +15,18 @@
                     <tr>
                         <td>{{ u.username }}</td><td>{{ u.get_full_name }}</td><td>{{ u.email }}</td><td>{{ u.branch.name|default:"Head Office" }}</td>
                         <td>{{ u.is_active|yesno:"Yes,No" }}</td>
-                        <td>{{ u.allowed_urls.count }} URLs</td>
+                        <td>
+                            {% if u.allowed_urls.exists %}
+                                <div>{{ u.allowed_urls.count }} URLs</div>
+                                <!-- <div class="small text-muted">
+                                    {% for url in u.allowed_urls.all %}
+                                        {{ url.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div> -->
+                            {% else %}
+                                <span class="text-muted">No URLs allowed</span>
+                            {% endif %}
+                        </td>
                         <td><a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-warning me-1">Edit</a><a href="{% url 'user_delete' u.pk %}" class="btn btn-sm btn-danger">Delete</a></td>
                     </tr>
                     {% empty %}<tr><td colspan="7">No users found.</td></tr>{% endfor %}

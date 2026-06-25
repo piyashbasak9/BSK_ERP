@@ -65,7 +65,7 @@ class UserListView(LoginRequiredMixin, SuperUserRequiredMixin, TemplateView):
     template_name = 'settings/user_management.html'
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['users'] = User.objects.all().order_by('username')
+        context['users'] = User.objects.prefetch_related('allowed_urls').all().order_by('username')
         return context
 
 class UserCreateView(LoginRequiredMixin, SuperUserRequiredMixin, CreateView):
