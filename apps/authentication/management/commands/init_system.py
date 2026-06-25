@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
+from django.urls import get_resolver
 from django.contrib.auth.models import Permission, Group
-from apps.authentication.models import User
+from apps.authentication.models import User, AllowedUrl
 from apps.branches.models import Branch
 from apps.accounting.models import Account
 from apps.savings.models import SavingsProduct
@@ -18,6 +19,8 @@ class Command(BaseCommand):
         if not User.objects.filter(username='admin').exists():
             admin = User.objects.create_superuser('admin', 'admin@bsk.com', 'admin123', branch=head)
             admin.save()
+
+        self.create_default_allowed_urls()
 
         # Create default Chart of Accounts
         accounts = [
@@ -38,3 +41,26 @@ class Command(BaseCommand):
             'installment_frequency': 'monthly', 'min_amount': 5000, 'max_amount': 50000
         })
         self.stdout.write(self.style.SUCCESS('System initialized.'))
+
+    def create_default_allowed_urls(self):
+        resolver = get_resolver(None)
+        url_names = self._collect_named_urls(resolver.url_patterns)
+        for url_name, path in sorted(url_names):
+            if url_name in {'admin:index'}:
+                continue
+            AllowedUrl.objects.get_or_create(
+                url_name=url_name,
+                defaults={
+                    'name': url_name.replace('_', ' ').title(),
+                    'path': path,
+                }
+            )
+
+    def _collect_named_urls(self, patterns):
+        result = []
+        for pattern in patterns:
+            if hasattr(pattern, 'url_patterns'):
+                result.extend(self._collect_named_urls(pattern.url_patterns))
+            elif getattr(pattern, 'name', None):
+                result.append((pattern.name, str(pattern.pattern)))
+        return result

@@ -9,6 +9,7 @@ from django.core.management import call_command
 from io import StringIO
 from .forms import SystemSettingsForm
 from .models import SystemSetting
+from apps.authentication.forms import UserForm
 from apps.authentication.models import User
 from apps.branches.models import Branch
 
@@ -69,16 +70,13 @@ class UserListView(LoginRequiredMixin, SuperUserRequiredMixin, TemplateView):
 
 class UserCreateView(LoginRequiredMixin, SuperUserRequiredMixin, CreateView):
     model = User
-    fields = ['username', 'password', 'first_name', 'last_name', 'email', 'branch', 'is_active', 'is_superuser', 'is_staff']
+    form_class = UserForm
     template_name = 'settings/user_form.html'
     success_url = reverse_lazy('user_management')
-    def form_valid(self, form):
-        form.instance.set_password(form.cleaned_data['password'])
-        return super().form_valid(form)
 
 class UserUpdateView(LoginRequiredMixin, SuperUserRequiredMixin, UpdateView):
     model = User
-    fields = ['username', 'first_name', 'last_name', 'email', 'branch', 'is_active', 'is_superuser', 'is_staff']
+    form_class = UserForm
     template_name = 'settings/user_form.html'
     success_url = reverse_lazy('user_management')
 

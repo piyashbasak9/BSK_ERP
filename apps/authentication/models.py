@@ -2,6 +2,21 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from apps.branches.models import Branch
 
+
+class AllowedUrl(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    url_name = models.CharField(max_length=200, unique=True)
+    path = models.CharField(max_length=300, blank=True, help_text='Optional display path for the URL')
+    description = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = 'Allowed URL'
+        verbose_name_plural = 'Allowed URLs'
+
+    def __str__(self):
+        return self.name
+
+
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('branch_manager', 'Branch Manager'),
@@ -13,6 +28,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='field_officer')
     phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
+    allowed_urls = models.ManyToManyField('AllowedUrl', blank=True, related_name='users')
 
     class Meta:
         permissions = [
@@ -22,3 +38,11 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+    def get_allowed_url_names(self):
+        return set(self.allowed_urls.values_list('url_name', flat=True))
+
+    def can_access_url(self, url_name):
+        if self.is_superuser:
+            return True
+        return url_name in self.get_allowed_url_names()

@@ -2,5 +2,72 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row justify-content-center"><div class="col-md-8"><div class="card"><div class="card-header"><h2>{% if object %}Edit User{% else %}Add User{% endif %}</h2></div><div class="card-body"><form method="post">{% csrf_token %}{{ form|crispy }}{% if not object %}<div class="alert alert-info">Password will be set as provided – use a secure value.</div>{% endif %}<button type="submit" class="btn btn-success">Save</button> <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a></form></div></div></div></div>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h2>{% if object %}Edit User{% else %}Add User{% endif %}</h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">{{ form.username|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.password|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.first_name|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.last_name|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.email|as_crispy_field }}</div>
+                        <div class="col-md-6">{{ form.branch|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.is_active|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.is_superuser|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.is_staff|as_crispy_field }}</div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>URL Access</h5>
+                        <p class="text-muted">Enable which app URLs this user may access. New URLs sync automatically from your route definitions.</p>
+                        {% if form.allowed_urls.errors %}
+                            <div class="alert alert-danger">{{ form.allowed_urls.errors }}</div>
+                        {% endif %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>URL Name</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Allow</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for url in form.allowed_urls.field.queryset %}
+                                        <tr>
+                                            <td>{{ url.name }}</td>
+                                            <td><code>{{ url.url_name }}</code></td>
+                                            <td>{{ url.description|default:'-' }}</td>
+                                            <td class="text-center">
+                                                {% with selected=form.allowed_urls.value %}
+                                                    <input type="checkbox" name="{{ form.allowed_urls.name }}" value="{{ url.pk }}" class="form-check-input"
+                                                        {% if selected and url.pk|stringformat:'s' in selected %}checked{% endif %} />
+                                                {% endwith %}
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr><td colspan="4">No URL definitions available yet. Add URL entries in admin or restart after URL sync.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if not object %}
+                        <div class="alert alert-info">Password will be set as provided – use a secure value.</div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-success">Save</button>
+                    <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

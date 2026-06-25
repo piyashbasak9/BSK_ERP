@@ -9,15 +9,16 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-0">
-                <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Branch</th><th>Active</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Branch</th><th>Active</th><th>Access</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for u in users %}
                     <tr>
                         <td>{{ u.username }}</td><td>{{ u.get_full_name }}</td><td>{{ u.email }}</td><td>{{ u.branch.name|default:"Head Office" }}</td>
                         <td>{{ u.is_active|yesno:"Yes,No" }}</td>
+                        <td>{{ u.allowed_urls.count }} URLs</td>
                         <td><a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-warning me-1">Edit</a><a href="{% url 'user_delete' u.pk %}" class="btn btn-sm btn-danger">Delete</a></td>
                     </tr>
-                    {% empty %}<tr><td colspan="6">No users found.</td></tr>{% endfor %}
+                    {% empty %}<tr><td colspan="7">No users found.</td></tr>{% endfor %}
                 </tbody>
             </table>
         </div>

@@ -2,6 +2,7 @@ import threading
 from django.utils.deprecation import MiddlewareMixin
 from django.shortcuts import redirect
 from django.urls import resolve
+from apps.authentication.models import AllowedUrl
 import json
 
 _thread_locals = threading.local()
@@ -27,6 +28,8 @@ class RBACMiddleware(MiddlewareMixin):
             return None
         resolver = resolve(request.path_info)
         url_name = resolver.url_name
+        if url_name in {'dashboard', 'access_denied', 'logout'}:
+            return None
         # Map URL names to required permissions (simplified example)
         perm_map = {
             'member_list': 'members.view_member',
@@ -46,7 +49,11 @@ class RBACMiddleware(MiddlewareMixin):
         }
         if url_name in perm_map:
             if not request.user.has_perm(perm_map[url_name]):
-                return redirect('dashboard')
+                return redirect('access_denied')
+
+        if url_name in AllowedUrl.objects.values_list('url_name', flat=True):
+            if not request.user.can_access_url(url_name):
+                return redirect('access_denied')
         return None
 
 class AuditMiddleware(MiddlewareMixin):
